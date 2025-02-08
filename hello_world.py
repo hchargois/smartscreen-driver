@@ -25,6 +25,8 @@ import sys
 import time
 import logging
 
+from PIL import Image, ImageDraw
+
 # Import only the modules for LCD communication
 from smartscreen_driver.lcd_comm_rev_a import LcdCommRevA, Orientation
 from smartscreen_driver.lcd_comm_rev_b import LcdCommRevB
@@ -113,7 +115,10 @@ lcd_comm.SetBackplateLedColor(led_color=(255, 255, 255))
 lcd_comm.SetOrientation(orientation=Orientation.LANDSCAPE)
 
 # Display sample text
-lcd_comm.DisplayText("Hello world!", 50, 85)
+img = Image.new("RGB", (lcd_comm.get_width(), lcd_comm.get_height()), (0, 0, 0))
+draw = ImageDraw.Draw(img)
+draw.text((0, 0), "Hello world!", font_size=48, fill=(255, 255, 255))
+lcd_comm.DisplayPILImage(img)
 
 while not stop:
     time.sleep(1)
