@@ -22,7 +22,7 @@ import logging
 from serial.tools.list_ports import comports
 
 from .lcd_comm import *
-from .serialize import image_to_RGB565, chunked
+from .serialize import image_to_rgb565, chunked
 
 logger = logging.getLogger(__name__)
 
@@ -55,10 +55,10 @@ class LcdCommRevD(LcdComm):
     ):
         logger.debug("HW revision: D")
         LcdComm.__init__(self, com_port, display_width, display_height, update_queue)
-        self.openSerial()
+        self.open_serial()
 
     def __del__(self):
-        self.closeSerial()
+        self.close_serial()
 
     @staticmethod
     def auto_detect_com_port() -> Optional[str]:
@@ -72,13 +72,13 @@ class LcdCommRevD(LcdComm):
 
         return auto_com_port
 
-    def WriteData(self, byteBuffer: bytearray):
-        LcdComm.WriteData(self, byteBuffer)
+    def write_data(self, data: bytearray):
+        LcdComm.write_data(self, data)
 
         # Empty the input buffer after each write: we don't process acknowledgements the screen sends back
         self.serial_flush_input()
 
-    def SendCommand(
+    def send_command(
         self,
         cmd: Command,
         payload: Optional[bytearray] = None,
@@ -91,34 +91,34 @@ class LcdCommRevD(LcdComm):
 
         # If no queue for async requests, or if asked explicitly to do the request sequentially: do request now
         if not self.update_queue or bypass_queue:
-            self.WriteData(message)
+            self.write_data(message)
         else:
             # Lock queue mutex then queue the request
             with self.update_queue_mutex:
-                self.update_queue.put((self.WriteData, [message]))
+                self.update_queue.put((self.write_data, [message]))
 
-    def InitializeComm(self):
+    def initialize_comm(self):
         pass
 
-    def Reset(self):
+    def reset(self):
         # HW revision D does not implement a command to reset it: clear display instead
-        self.Clear()
+        self.clear()
 
-    def Clear(self):
+    def clear(self):
         # HW revision D does not implement a Clear command: display a blank image on the whole screen
         color = 0xFFFF  # RGB565 White color
         color_bytes = bytearray(color.to_bytes(2, "big"))
-        self.SendCommand(cmd=Command.DISPCOLOR, payload=color_bytes)
+        self.send_command(cmd=Command.DISPCOLOR, payload=color_bytes)
 
-    def ScreenOff(self):
+    def screen_off(self):
         # HW revision D does not implement a "ScreenOff" native command: using SetBrightness(0) instead
-        self.SetBrightness(0)
+        self.set_brightness(0)
 
-    def ScreenOn(self):
+    def screen_on(self):
         # HW revision D does not implement a "ScreenOn" native command: using SetBrightness() instead
-        self.SetBrightness()
+        self.set_brightness()
 
-    def SetBrightness(self, level: int = 25):
+    def set_brightness(self, level: int = 25):
         assert 0 <= level <= 100, "Brightness level must be [0-100]"
 
         # Brightness scales from 0 to 500, with 500 being the brightest and 0 being the darkest.
@@ -128,10 +128,10 @@ class LcdCommRevD(LcdComm):
         level_bytes = bytearray(converted_level.to_bytes(2, "big"))
 
         # Send the command twice because sometimes it is not applied...
-        self.SendCommand(cmd=Command.SETBL, payload=level_bytes)
-        self.SendCommand(cmd=Command.SETBL, payload=level_bytes)
+        self.send_command(cmd=Command.SETBL, payload=level_bytes)
+        self.send_command(cmd=Command.SETBL, payload=level_bytes)
 
-    def SetOrientation(self, orientation: Orientation = Orientation.PORTRAIT):
+    def set_orientation(self, orientation: Orientation = Orientation.PORTRAIT):
         # In revision D, reverse orientations (reverse portrait / reverse landscape) are managed by the display
         # Basic orientations (portrait / landscape) are software-managed because screen commands only support portrait
         self.orientation = orientation
@@ -140,11 +140,11 @@ class LcdCommRevD(LcdComm):
             self.orientation == Orientation.REVERSE_LANDSCAPE
             or self.orientation == Orientation.REVERSE_PORTRAIT
         ):
-            self.SendCommand(cmd=Command.SET180)
+            self.send_command(cmd=Command.SET180)
         else:
-            self.SendCommand(cmd=Command.SETORG)
+            self.send_command(cmd=Command.SETORG)
 
-    def DisplayPILImage(
+    def paint(
         self,
         image: Image.Image,
         x: int = 0,
@@ -194,17 +194,17 @@ class LcdCommRevD(LcdComm):
         image_data += x1.to_bytes(2, "big")
         image_data += y0.to_bytes(2, "big")
         image_data += y1.to_bytes(2, "big")
-        self.SendCommand(cmd=Command.BLOCKWRITE, payload=image_data)
+        self.send_command(cmd=Command.BLOCKWRITE, payload=image_data)
 
         # Prepare bitmap data transmission
-        self.SendCommand(Command.INTOPICMODE)
+        self.send_command(Command.INTOPICMODE)
 
-        rgb565be = image_to_RGB565(image, "big")
+        rgb565be = image_to_rgb565(image, "big")
 
         # Lock queue mutex then queue all the requests for the image data
         with self.update_queue_mutex:
             for chunk in chunked(rgb565be, 63):
-                self.SendLine(b"\x50" + chunk)
+                self.send_line(b"\x50" + chunk)
 
         # Indicate the complete bitmap has been transmitted
-        self.SendCommand(Command.OUTPICMODE)
+        self.send_command(Command.OUTPICMODE)

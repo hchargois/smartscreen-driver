@@ -85,7 +85,7 @@ class LcdComm(ABC):
         else:
             return self.display_width
 
-    def openSerial(self):
+    def open_serial(self):
         if self.com_port == "AUTO":
             self.com_port = self.auto_detect_com_port()
             if not self.com_port:
@@ -112,7 +112,7 @@ class LcdComm(ABC):
             except:
                 os._exit(0)
 
-    def closeSerial(self):
+    def close_serial(self):
         if self.lcd_serial is not None:
             self.lcd_serial.close()
 
@@ -128,18 +128,18 @@ class LcdComm(ABC):
         if self.lcd_serial is not None:
             self.lcd_serial.reset_input_buffer()
 
-    def WriteData(self, byteBuffer: bytearray):
-        self.WriteLine(bytes(byteBuffer))
+    def write_data(self, data: bytearray):
+        self.write_line(bytes(data))
 
-    def SendLine(self, line: bytes):
+    def send_line(self, line: bytes):
         if self.update_queue:
             # Queue the request. Mutex is locked by caller to queue multiple lines
-            self.update_queue.put((self.WriteLine, [line]))
+            self.update_queue.put((self.write_line, [line]))
         else:
             # If no queue for async requests: do request now
-            self.WriteLine(line)
+            self.write_line(line)
 
-    def WriteLine(self, line: bytes):
+    def write_line(self, line: bytes):
         try:
             self.serial_write(line)
         except serial.SerialTimeoutException:
@@ -150,14 +150,14 @@ class LcdComm(ABC):
             logger.error(
                 "SerialException: Failed to send serial data to device. Closing and reopening COM port before retrying once."
             )
-            self.closeSerial()
+            self.close_serial()
             time.sleep(1)
-            self.openSerial()
+            self.open_serial()
             self.serial_write(line)
 
-    def ReadData(self, readSize: int):
+    def read_data(self, size: int):
         try:
-            response = self.serial_read(readSize)
+            response = self.serial_read(size)
             # logger.debug("Received: [{}]".format(str(response, 'utf-8')))
             return response
         except serial.SerialTimeoutException:
@@ -168,10 +168,10 @@ class LcdComm(ABC):
             logger.error(
                 "SerialException: Failed to read serial data from device. Closing and reopening COM port before retrying once."
             )
-            self.closeSerial()
+            self.close_serial()
             time.sleep(1)
-            self.openSerial()
-            return self.serial_read(readSize)
+            self.open_serial()
+            return self.serial_read(size)
 
     @staticmethod
     @abstractmethod
@@ -179,38 +179,40 @@ class LcdComm(ABC):
         pass
 
     @abstractmethod
-    def InitializeComm(self):
+    def initialize_comm(self):
         pass
 
     @abstractmethod
-    def Reset(self):
+    def reset(self):
         pass
 
     @abstractmethod
-    def Clear(self):
+    def clear(self):
         pass
 
     @abstractmethod
-    def ScreenOff(self):
+    def screen_off(self):
         pass
 
     @abstractmethod
-    def ScreenOn(self):
+    def screen_on(self):
         pass
 
     @abstractmethod
-    def SetBrightness(self, level: int):
+    def set_brightness(self, level: int):
         pass
 
-    def SetBackplateLedColor(self, led_color: Tuple[int, int, int] = (255, 255, 255)):
+    def set_backplate_led_color(
+        self, led_color: Tuple[int, int, int] = (255, 255, 255)
+    ):
         pass
 
     @abstractmethod
-    def SetOrientation(self, orientation: Orientation):
+    def set_orientation(self, orientation: Orientation):
         pass
 
     @abstractmethod
-    def DisplayPILImage(
+    def paint(
         self,
         image: Image.Image,
         x: int = 0,

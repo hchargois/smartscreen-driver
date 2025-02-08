@@ -24,7 +24,7 @@ import logging
 from serial.tools.list_ports import comports
 
 from .lcd_comm import *
-from .serialize import image_to_RGB565, chunked
+from .serialize import image_to_rgb565, chunked
 
 logger = logging.getLogger(__name__)
 
@@ -65,10 +65,10 @@ class LcdCommRevA(LcdComm):
     ):
         logger.debug("HW revision: A")
         LcdComm.__init__(self, com_port, display_width, display_height, update_queue)
-        self.openSerial()
+        self.open_serial()
 
     def __del__(self):
-        self.closeSerial()
+        self.close_serial()
 
     @staticmethod
     def auto_detect_com_port() -> Optional[str]:
@@ -82,24 +82,24 @@ class LcdCommRevA(LcdComm):
 
         return auto_com_port
 
-    def SendCommand(
+    def send_command(
         self, cmd: Command, x: int, y: int, ex: int, ey: int, bypass_queue: bool = False
     ):
-        byteBuffer = bytearray(6)
-        byteBuffer[0] = x >> 2
-        byteBuffer[1] = ((x & 3) << 6) + (y >> 4)
-        byteBuffer[2] = ((y & 15) << 4) + (ex >> 6)
-        byteBuffer[3] = ((ex & 63) << 2) + (ey >> 8)
-        byteBuffer[4] = ey & 255
-        byteBuffer[5] = cmd
+        byte_buffer = bytearray(6)
+        byte_buffer[0] = x >> 2
+        byte_buffer[1] = ((x & 3) << 6) + (y >> 4)
+        byte_buffer[2] = ((y & 15) << 4) + (ex >> 6)
+        byte_buffer[3] = ((ex & 63) << 2) + (ey >> 8)
+        byte_buffer[4] = ey & 255
+        byte_buffer[5] = cmd
 
         # If no queue for async requests, or if asked explicitly to do the request sequentially: do request now
         if not self.update_queue or bypass_queue:
-            self.WriteData(byteBuffer)
+            self.write_data(byte_buffer)
         else:
             # Lock queue mutex then queue the request
             with self.update_queue_mutex:
-                self.update_queue.put((self.WriteData, [byteBuffer]))
+                self.update_queue.put((self.write_data, [byte_buffer]))
 
     def _hello(self):
         hello = bytearray(
@@ -114,7 +114,7 @@ class LcdCommRevA(LcdComm):
         )
 
         # This command reads LCD answer on serial link, so it bypasses the queue
-        self.WriteData(hello)
+        self.write_data(hello)
         response = self.serial_read(6)
         self.serial_flush_input()
 
@@ -137,32 +137,32 @@ class LcdCommRevA(LcdComm):
 
         logger.debug("HW sub-revision: %s" % (str(self.sub_revision)))
 
-    def InitializeComm(self):
+    def initialize_comm(self):
         self._hello()
 
-    def Reset(self):
+    def reset(self):
         logger.info("Display reset (COM port may change)...")
         # Reset command bypasses queue because it is run when queue threads are not yet started
-        self.SendCommand(Command.RESET, 0, 0, 0, 0, bypass_queue=True)
-        self.closeSerial()
+        self.send_command(Command.RESET, 0, 0, 0, 0, bypass_queue=True)
+        self.close_serial()
         # Wait for display reset then reconnect
         time.sleep(5)
-        self.openSerial()
+        self.open_serial()
 
-    def Clear(self):
-        self.SetOrientation(
+    def clear(self):
+        self.set_orientation(
             Orientation.PORTRAIT
         )  # Bug: orientation needs to be PORTRAIT before clearing
-        self.SendCommand(Command.CLEAR, 0, 0, 0, 0)
-        self.SetOrientation()  # Restore default orientation
+        self.send_command(Command.CLEAR, 0, 0, 0, 0)
+        self.set_orientation()  # Restore default orientation
 
-    def ScreenOff(self):
-        self.SendCommand(Command.SCREEN_OFF, 0, 0, 0, 0)
+    def screen_off(self):
+        self.send_command(Command.SCREEN_OFF, 0, 0, 0, 0)
 
-    def ScreenOn(self):
-        self.SendCommand(Command.SCREEN_ON, 0, 0, 0, 0)
+    def screen_on(self):
+        self.send_command(Command.SCREEN_ON, 0, 0, 0, 0)
 
-    def SetBrightness(self, level: int = 25):
+    def set_brightness(self, level: int = 25):
         assert 0 <= level <= 100, "Brightness level must be [0-100]"
 
         # Display scales from 0 to 255, with 0 being the brightest and 255 being the darkest.
@@ -170,9 +170,9 @@ class LcdCommRevA(LcdComm):
         level_absolute = int(255 - ((level / 100) * 255))
 
         # Level : 0 (brightest) - 255 (darkest)
-        self.SendCommand(Command.SET_BRIGHTNESS, level_absolute, 0, 0, 0)
+        self.send_command(Command.SET_BRIGHTNESS, level_absolute, 0, 0, 0)
 
-    def SetOrientation(self, orientation: Orientation = Orientation.PORTRAIT):
+    def set_orientation(self, orientation: Orientation = Orientation.PORTRAIT):
         self.orientation = orientation
         width = self.get_width()
         height = self.get_height()
@@ -180,21 +180,21 @@ class LcdCommRevA(LcdComm):
         y = 0
         ex = 0
         ey = 0
-        byteBuffer = bytearray(16)
-        byteBuffer[0] = x >> 2
-        byteBuffer[1] = ((x & 3) << 6) + (y >> 4)
-        byteBuffer[2] = ((y & 15) << 4) + (ex >> 6)
-        byteBuffer[3] = ((ex & 63) << 2) + (ey >> 8)
-        byteBuffer[4] = ey & 255
-        byteBuffer[5] = Command.SET_ORIENTATION
-        byteBuffer[6] = orientation + 100
-        byteBuffer[7] = width >> 8
-        byteBuffer[8] = width & 255
-        byteBuffer[9] = height >> 8
-        byteBuffer[10] = height & 255
-        self.serial_write(bytes(byteBuffer))
+        byte_buffer = bytearray(16)
+        byte_buffer[0] = x >> 2
+        byte_buffer[1] = ((x & 3) << 6) + (y >> 4)
+        byte_buffer[2] = ((y & 15) << 4) + (ex >> 6)
+        byte_buffer[3] = ((ex & 63) << 2) + (ey >> 8)
+        byte_buffer[4] = ey & 255
+        byte_buffer[5] = Command.SET_ORIENTATION
+        byte_buffer[6] = orientation + 100
+        byte_buffer[7] = width >> 8
+        byte_buffer[8] = width & 255
+        byte_buffer[9] = height >> 8
+        byte_buffer[10] = height & 255
+        self.serial_write(bytes(byte_buffer))
 
-    def DisplayPILImage(
+    def paint(
         self,
         image: Image.Image,
         x: int = 0,
@@ -228,12 +228,12 @@ class LcdCommRevA(LcdComm):
         (x0, y0) = (x, y)
         (x1, y1) = (x + image_width - 1, y + image_height - 1)
 
-        rgb565le = image_to_RGB565(image, "little")
+        rgb565le = image_to_rgb565(image, "little")
 
-        self.SendCommand(Command.DISPLAY_BITMAP, x0, y0, x1, y1)
+        self.send_command(Command.DISPLAY_BITMAP, x0, y0, x1, y1)
 
         # Lock queue mutex then queue all the requests for the image data
         with self.update_queue_mutex:
             # Send image data by multiple of "display width" bytes
             for chunk in chunked(rgb565le, width * 8):
-                self.SendLine(chunk)
+                self.send_line(chunk)

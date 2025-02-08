@@ -22,7 +22,7 @@ import logging
 from serial.tools.list_ports import comports
 
 from .lcd_comm import *
-from .serialize import image_to_RGB565, chunked
+from .serialize import image_to_rgb565, chunked
 
 logger = logging.getLogger(__name__)
 
@@ -61,13 +61,13 @@ class LcdCommRevB(LcdComm):
     ):
         logger.debug("HW revision: B")
         LcdComm.__init__(self, com_port, display_width, display_height, update_queue)
-        self.openSerial()
+        self.open_serial()
         self.sub_revision = (
             SubRevision.A01
         )  # Run a Hello command to detect correct sub-rev.
 
     def __del__(self):
-        self.closeSerial()
+        self.close_serial()
 
     def is_flagship(self):
         return (
@@ -91,38 +91,38 @@ class LcdCommRevB(LcdComm):
 
         return auto_com_port
 
-    def SendCommand(self, cmd: Command, payload=None, bypass_queue: bool = False):
+    def send_command(self, cmd: Command, payload=None, bypass_queue: bool = False):
         # New protocol (10 byte packets, framed with the command, 8 data bytes inside)
         if payload is None:
             payload = [0] * 8
         elif len(payload) < 8:
             payload = list(payload) + [0] * (8 - len(payload))
 
-        byteBuffer = bytearray(10)
-        byteBuffer[0] = cmd
-        byteBuffer[1] = payload[0]
-        byteBuffer[2] = payload[1]
-        byteBuffer[3] = payload[2]
-        byteBuffer[4] = payload[3]
-        byteBuffer[5] = payload[4]
-        byteBuffer[6] = payload[5]
-        byteBuffer[7] = payload[6]
-        byteBuffer[8] = payload[7]
-        byteBuffer[9] = cmd
+        byte_buffer = bytearray(10)
+        byte_buffer[0] = cmd
+        byte_buffer[1] = payload[0]
+        byte_buffer[2] = payload[1]
+        byte_buffer[3] = payload[2]
+        byte_buffer[4] = payload[3]
+        byte_buffer[5] = payload[4]
+        byte_buffer[6] = payload[5]
+        byte_buffer[7] = payload[6]
+        byte_buffer[8] = payload[7]
+        byte_buffer[9] = cmd
 
         # If no queue for async requests, or if asked explicitly to do the request sequentially: do request now
         if not self.update_queue or bypass_queue:
-            self.WriteData(byteBuffer)
+            self.write_data(byte_buffer)
         else:
             # Lock queue mutex then queue the request
             with self.update_queue_mutex:
-                self.update_queue.put((self.WriteData, [byteBuffer]))
+                self.update_queue.put((self.write_data, [byte_buffer]))
 
     def _hello(self):
         hello = [ord("H"), ord("E"), ord("L"), ord("L"), ord("O")]
 
         # This command reads LCD answer on serial link, so it bypasses the queue
-        self.SendCommand(Command.HELLO, payload=hello, bypass_queue=True)
+        self.send_command(Command.HELLO, payload=hello, bypass_queue=True)
         response = self.serial_read(10)
         self.serial_flush_input()
 
@@ -152,34 +152,34 @@ class LcdCommRevB(LcdComm):
 
         logger.debug("HW sub-revision: %s" % (str(self.sub_revision)))
 
-    def InitializeComm(self):
+    def initialize_comm(self):
         self._hello()
 
-    def Reset(self):
+    def reset(self):
         # HW revision B does not implement a command to reset it: clear display instead
-        self.Clear()
+        self.clear()
 
-    def Clear(self):
+    def clear(self):
         # HW revision B does not implement a Clear command: display a blank image on the whole screen
         # Force an orientation in case the screen is currently configured with one different from the theme
         backup_orientation = self.orientation
-        self.SetOrientation(orientation=Orientation.PORTRAIT)
+        self.set_orientation(orientation=Orientation.PORTRAIT)
 
         blank = Image.new("RGB", (self.get_width(), self.get_height()), (255, 255, 255))
-        self.DisplayPILImage(blank)
+        self.paint(blank)
 
         # Restore orientation
-        self.SetOrientation(orientation=backup_orientation)
+        self.set_orientation(orientation=backup_orientation)
 
-    def ScreenOff(self):
+    def screen_off(self):
         # HW revision B does not implement a "ScreenOff" native command: using SetBrightness(0) instead
-        self.SetBrightness(0)
+        self.set_brightness(0)
 
-    def ScreenOn(self):
+    def screen_on(self):
         # HW revision B does not implement a "ScreenOn" native command: using SetBrightness() instead
-        self.SetBrightness()
+        self.set_brightness()
 
-    def SetBrightness(self, level: int = 25):
+    def set_brightness(self, level: int = 25):
         assert 0 <= level <= 100, "Brightness level must be [0-100]"
 
         if self.is_brightness_range():
@@ -191,17 +191,19 @@ class LcdCommRevB(LcdComm):
             logger.info("Your display does not support custom brightness level")
             converted_level = 1 if level == 0 else 0
 
-        self.SendCommand(Command.SET_BRIGHTNESS, payload=[converted_level])
+        self.send_command(Command.SET_BRIGHTNESS, payload=[converted_level])
 
-    def SetBackplateLedColor(self, led_color: Tuple[int, int, int] = (255, 255, 255)):
+    def set_backplate_led_color(
+        self, led_color: Tuple[int, int, int] = (255, 255, 255)
+    ):
         if self.is_flagship():
-            self.SendCommand(Command.SET_LIGHTING, payload=list(led_color))
+            self.send_command(Command.SET_LIGHTING, payload=list(led_color))
         else:
             logger.info(
                 "Only HW revision 'flagship' supports backplate LED color setting"
             )
 
-    def SetOrientation(self, orientation: Orientation = Orientation.PORTRAIT):
+    def set_orientation(self, orientation: Orientation = Orientation.PORTRAIT):
         # In revision B, basic orientations (portrait / landscape) are managed by the display
         # The reverse orientations (reverse portrait / reverse landscape) are software-managed
         self.orientation = orientation
@@ -209,12 +211,12 @@ class LcdCommRevB(LcdComm):
             self.orientation == Orientation.PORTRAIT
             or self.orientation == Orientation.REVERSE_PORTRAIT
         ):
-            self.SendCommand(
+            self.send_command(
                 Command.SET_ORIENTATION,
                 payload=[OrientationValueRevB.ORIENTATION_PORTRAIT],
             )
         else:
-            self.SendCommand(
+            self.send_command(
                 Command.SET_ORIENTATION,
                 payload=[OrientationValueRevB.ORIENTATION_LANDSCAPE],
             )
@@ -227,9 +229,9 @@ class LcdCommRevB(LcdComm):
             or self.orientation == Orientation.REVERSE_LANDSCAPE
         ):
             image = image.rotate(180)
-        return image_to_RGB565(image, "big")
+        return image_to_rgb565(image, "big")
 
-    def DisplayPILImage(
+    def paint(
         self,
         image: Image.Image,
         x: int = 0,
@@ -268,7 +270,7 @@ class LcdCommRevB(LcdComm):
             )
             (x1, y1) = (self.get_width() - x - 1, self.get_height() - y - 1)
 
-        self.SendCommand(
+        self.send_command(
             Command.DISPLAY_BITMAP,
             payload=[
                 (x0 >> 8) & 255,
@@ -288,4 +290,4 @@ class LcdCommRevB(LcdComm):
         with self.update_queue_mutex:
             # Send image data by multiple of "display width" bytes
             for chunk in chunked(rgb565be, self.get_width() * 8):
-                self.SendLine(chunk)
+                self.send_line(chunk)

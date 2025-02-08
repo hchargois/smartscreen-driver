@@ -100,30 +100,30 @@ else:
         os._exit(1)
 
 # Reset screen in case it was in an unstable state (screen is also cleared)
-lcd_comm.Reset()
+lcd_comm.reset()
 
 # Send initialization commands
-lcd_comm.InitializeComm()
+lcd_comm.initialize_comm()
 
 # Set brightness in % (warning: revision A display can get hot at high brightness! Keep value at 50% max for rev. A)
-lcd_comm.SetBrightness(level=10)
+lcd_comm.set_brightness(level=10)
 
 # Set backplate RGB LED color (for supported HW only)
-lcd_comm.SetBackplateLedColor(led_color=(255, 255, 255))
+lcd_comm.set_backplate_led_color(led_color=(255, 255, 255))
 
 # Set orientation (screen starts in Portrait)
-lcd_comm.SetOrientation(orientation=Orientation.LANDSCAPE)
+lcd_comm.set_orientation(orientation=Orientation.LANDSCAPE)
 
 # Display sample text
 img = Image.new("RGB", (lcd_comm.get_width(), lcd_comm.get_height()), (0, 0, 0))
 draw = ImageDraw.Draw(img)
 draw.text((0, 0), "Hello world!", font_size=48, fill=(255, 255, 255))
-lcd_comm.DisplayPILImage(img)
+lcd_comm.paint(img)
 
 while not stop:
     time.sleep(1)
 
-lcd_comm.ScreenOff()
+lcd_comm.screen_off()
 
 # Close serial connection at exit
-lcd_comm.closeSerial()
+lcd_comm.close_serial()

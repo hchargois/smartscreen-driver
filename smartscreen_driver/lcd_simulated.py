@@ -31,7 +31,7 @@ class SimulatedLcdWebServer(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         return
 
-    def do_GET(self):
+    def do_GET(self):  # noqa: N802
         if self.path == "/":
             self.send_response(200)
             self.send_header("Content-type", "text/html")
@@ -100,38 +100,40 @@ class LcdSimulated(LcdComm):
             )
 
     def __del__(self):
-        self.closeSerial()
+        self.close_serial()
 
     @staticmethod
     def auto_detect_com_port() -> Optional[str]:
         return None
 
-    def closeSerial(self):
+    def close_serial(self):
         logger.debug("Shutting down web server")
         self.webServer.shutdown()
 
-    def InitializeComm(self):
+    def initialize_comm(self):
         pass
 
-    def Reset(self):
+    def reset(self):
         pass
 
-    def Clear(self):
-        self.SetOrientation(self.orientation)
+    def clear(self):
+        self.set_orientation(self.orientation)
 
-    def ScreenOff(self):
+    def screen_off(self):
         pass
 
-    def ScreenOn(self):
+    def screen_on(self):
         pass
 
-    def SetBrightness(self, level: int = 25):
+    def set_brightness(self, level: int = 25):
         pass
 
-    def SetBackplateLedColor(self, led_color: Tuple[int, int, int] = (255, 255, 255)):
+    def set_backplate_led_color(
+        self, led_color: Tuple[int, int, int] = (255, 255, 255)
+    ):
         pass
 
-    def SetOrientation(self, orientation: Orientation = Orientation.PORTRAIT):
+    def set_orientation(self, orientation: Orientation = Orientation.PORTRAIT):
         self.orientation = orientation
         # Just draw the screen again with the new width/height based on orientation
         with self.update_queue_mutex:
@@ -141,7 +143,7 @@ class LcdSimulated(LcdComm):
             self.screen_image.save("tmp", "PNG")
             shutil.copyfile("tmp", SCREENSHOT_FILE)
 
-    def DisplayPILImage(
+    def paint(
         self,
         image: Image.Image,
         x: int = 0,

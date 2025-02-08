@@ -30,7 +30,7 @@ from PIL import Image
 from serial.tools.list_ports import comports
 
 from .lcd_comm import Orientation, LcdComm
-from .serialize import image_to_BGRA, image_to_BGR, chunked
+from .serialize import image_to_bgra, image_to_bgr, chunked
 
 logger = logging.getLogger(__name__)
 
@@ -148,10 +148,10 @@ class LcdCommRevC(LcdComm):
     ):
         logger.debug("HW revision: C")
         LcdComm.__init__(self, com_port, display_width, display_height, update_queue)
-        self.openSerial()
+        self.open_serial()
 
     def __del__(self):
-        self.closeSerial()
+        self.close_serial()
 
     @staticmethod
     def auto_detect_com_port() -> Optional[str]:
@@ -205,14 +205,14 @@ class LcdCommRevC(LcdComm):
 
         # If no queue for async requests, or if asked explicitly to do the request sequentially: do request now
         if not self.update_queue or bypass_queue:
-            self.WriteData(message)
+            self.write_data(message)
             if readsize:
-                self.ReadData(readsize)
+                self.read_data(readsize)
         else:
             # Lock queue mutex then queue the request
-            self.update_queue.put((self.WriteData, [message]))
+            self.update_queue.put((self.write_data, [message]))
             if readsize:
-                self.update_queue.put((self.ReadData, [readsize]))
+                self.update_queue.put((self.read_data, [readsize]))
 
     def _hello(self):
         # This command reads LCD answer on serial link, so it bypasses the queue
@@ -230,43 +230,43 @@ class LcdCommRevC(LcdComm):
 
         logger.debug("HW sub-revision: %s" % (str(self.sub_revision)))
 
-    def InitializeComm(self):
+    def initialize_comm(self):
         self._hello()
 
-    def Reset(self):
+    def reset(self):
         logger.info("Display reset (COM port may change)...")
         # Reset command bypasses queue because it is run when queue threads are not yet started
         self._send_command(Command.RESTART, bypass_queue=True)
-        self.closeSerial()
+        self.close_serial()
         # Wait for display reset then reconnect
         time.sleep(15)
-        self.openSerial()
+        self.open_serial()
 
-    def Clear(self):
+    def clear(self):
         # This hardware does not implement a Clear command: display a blank image on the whole screen
         # Force an orientation in case the screen is currently configured with one different from the theme
         backup_orientation = self.orientation
-        self.SetOrientation(orientation=Orientation.PORTRAIT)
+        self.set_orientation(orientation=Orientation.PORTRAIT)
 
         blank = Image.new("RGB", (self.get_width(), self.get_height()), (255, 255, 255))
-        self.DisplayPILImage(blank)
+        self.paint(blank)
 
         # Restore orientation
-        self.SetOrientation(orientation=backup_orientation)
+        self.set_orientation(orientation=backup_orientation)
 
-    def ScreenOff(self):
+    def screen_off(self):
         logger.info("Calling ScreenOff")
         self._send_command(Command.STOP_VIDEO)
         self._send_command(Command.STOP_MEDIA, readsize=1024)
         self._send_command(Command.TURNOFF)
 
-    def ScreenOn(self):
+    def screen_on(self):
         logger.info("Calling ScreenOn")
         self._send_command(Command.STOP_VIDEO)
         self._send_command(Command.STOP_MEDIA, readsize=1024)
         # self._send_command(Command.SET_BRIGHTNESS, payload=bytearray([255]))
 
-    def SetBrightness(self, level: int = 25):
+    def set_brightness(self, level: int = 25):
         # logger.info("Call SetBrightness")
         assert 0 <= level <= 100, "Brightness level must be [0-100]"
 
@@ -280,7 +280,7 @@ class LcdCommRevC(LcdComm):
             bypass_queue=True,
         )
 
-    def SetOrientation(self, orientation: Orientation = Orientation.PORTRAIT):
+    def set_orientation(self, orientation: Orientation = Orientation.PORTRAIT):
         self.orientation = orientation
         # logger.info(f"Call SetOrientation to: {self.orientation.name}")
 
@@ -304,7 +304,7 @@ class LcdCommRevC(LcdComm):
             )
             self._send_command(Command.OPTIONS, payload=b)
 
-    def DisplayPILImage(
+    def paint(
         self,
         image: Image.Image,
         x: int = 0,
@@ -368,7 +368,7 @@ class LcdCommRevC(LcdComm):
         elif self.orientation == Orientation.REVERSE_LANDSCAPE:
             image = image.rotate(180)
 
-        bgra_data = image_to_BGRA(image)
+        bgra_data = image_to_bgra(image)
 
         return b"\x00".join(chunked(bgra_data, 249))
 
@@ -396,7 +396,7 @@ class LcdCommRevC(LcdComm):
             x0, y0 = y, x
 
         img_raw_data = bytearray()
-        bgr_data = image_to_BGR(image)
+        bgr_data = image_to_bgr(image)
         for h, line in enumerate(chunked(bgr_data, image.width * 3)):
             img_raw_data += int(((x0 + h) * self.display_height) + y0).to_bytes(
                 3, "big"

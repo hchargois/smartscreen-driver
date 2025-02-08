@@ -9,7 +9,7 @@ def chunked(data: bytes, chunk_size: int) -> Iterator[bytes]:
         yield data[i : i + chunk_size]
 
 
-def image_to_RGB565(image: Image.Image, endianness: Literal["big", "little"]) -> bytes:
+def image_to_rgb565(image: Image.Image, endianness: Literal["big", "little"]) -> bytes:
     if image.mode not in ["RGB", "RGBA"]:
         # we need the first 3 channels to be R, G and B
         image = image.convert("RGB")
@@ -39,7 +39,7 @@ def image_to_RGB565(image: Image.Image, endianness: Literal["big", "little"]) ->
     return rgb565.astype(typ).tobytes()
 
 
-def image_to_BGR(image: Image.Image) -> bytes:
+def image_to_bgr(image: Image.Image) -> bytes:
     if image.mode not in ["RGB", "RGBA"]:
         # we need the first 3 channels to be R, G and B
         image = image.convert("RGB")
@@ -49,7 +49,7 @@ def image_to_BGR(image: Image.Image) -> bytes:
     return bgr.tobytes()
 
 
-def image_to_BGRA(image: Image.Image) -> bytes:
+def image_to_bgra(image: Image.Image) -> bytes:
     if image.mode != "RGBA":
         image = image.convert("RGBA")
     rgba = np.asarray(image)
