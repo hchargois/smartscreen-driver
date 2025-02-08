@@ -19,8 +19,16 @@
 import mimetypes
 import shutil
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from typing import Optional, Tuple
+import queue
+import threading
+import logging
 
-from .lcd_comm import *
+from PIL import Image
+
+from .lcd_comm import LcdComm, Orientation
+
+logger = logging.getLogger(__name__)
 
 SCREENSHOT_FILE = "screencap.png"
 WEBSERVER_PORT = 5678

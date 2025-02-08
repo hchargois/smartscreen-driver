@@ -18,10 +18,13 @@
 
 from enum import Enum
 import logging
+from typing import Optional
+import queue
 
 from serial.tools.list_ports import comports
+from PIL import Image
 
-from .lcd_comm import *
+from .lcd_comm import LcdComm, Orientation
 from .serialize import image_to_rgb565, chunked
 
 logger = logging.getLogger(__name__)
