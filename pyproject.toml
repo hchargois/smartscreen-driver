@@ -1,0 +1,11 @@
+[project]
+name = "smartscreen-driver"
+version = "0.1.0"
+description = "Driver for serial-over-USB displays; library extracted from turing-smart-screen-python"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=2.0.2",
+    "pillow>=11.1.0",
+    "pyserial>=3.5",
+]
