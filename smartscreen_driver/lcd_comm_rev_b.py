@@ -193,8 +193,7 @@ class LcdCommRevB(LcdComm):
 
         self.SendCommand(Command.SET_BRIGHTNESS, payload=[converted_level])
 
-    def SetBackplateLedColor(self, led_color: Color = (255, 255, 255)):
-        led_color = parse_color(led_color)
+    def SetBackplateLedColor(self, led_color: Tuple[int, int, int] = (255, 255, 255)):
         if self.is_flagship():
             self.SendCommand(Command.SET_LIGHTING, payload=list(led_color))
         else:
