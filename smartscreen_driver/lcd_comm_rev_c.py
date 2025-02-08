@@ -23,14 +23,16 @@ import time
 from enum import Enum
 from math import ceil
 from typing import Optional, Tuple
+import logging
 
 import serial
 from PIL import Image
 from serial.tools.list_ports import comports
 
-from library.lcd.lcd_comm import Orientation, LcdComm
-from library.lcd.serialize import image_to_BGRA, image_to_BGR, chunked
-from library.log import logger
+from .lcd_comm import Orientation, LcdComm
+from .serialize import image_to_BGRA, image_to_BGR, chunked
+
+logger = logging.getLogger(__name__)
 
 
 class Count:
@@ -59,30 +61,37 @@ class Count:
 #   SEND QUERY_STATUS
 #   READ STATUS(1024)
 
+
 class Command(Enum):
     # COMMANDS
-    HELLO = bytearray((0x01, 0xef, 0x69, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0xc5, 0xd3))
-    OPTIONS = bytearray((0x7d, 0xef, 0x69, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x2d))
-    RESTART = bytearray((0x84, 0xef, 0x69, 0x00, 0x00, 0x00, 0x01))
-    TURNOFF = bytearray((0x83, 0xef, 0x69, 0x00, 0x00, 0x00, 0x01))
-    TURNON = bytearray((0x83, 0xef, 0x69, 0x00, 0x00, 0x00, 0x00))
+    HELLO = bytearray(
+        (0x01, 0xEF, 0x69, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0xC5, 0xD3)
+    )
+    OPTIONS = bytearray(
+        (0x7D, 0xEF, 0x69, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x2D)
+    )
+    RESTART = bytearray((0x84, 0xEF, 0x69, 0x00, 0x00, 0x00, 0x01))
+    TURNOFF = bytearray((0x83, 0xEF, 0x69, 0x00, 0x00, 0x00, 0x01))
+    TURNON = bytearray((0x83, 0xEF, 0x69, 0x00, 0x00, 0x00, 0x00))
 
-    SET_BRIGHTNESS = bytearray((0x7b, 0xef, 0x69, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00))
+    SET_BRIGHTNESS = bytearray(
+        (0x7B, 0xEF, 0x69, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00)
+    )
 
     # STOP COMMANDS
-    STOP_VIDEO = bytearray((0x79, 0xef, 0x69, 0x00, 0x00, 0x00, 0x01))
-    STOP_MEDIA = bytearray((0x96, 0xef, 0x69, 0x00, 0x00, 0x00, 0x01))
+    STOP_VIDEO = bytearray((0x79, 0xEF, 0x69, 0x00, 0x00, 0x00, 0x01))
+    STOP_MEDIA = bytearray((0x96, 0xEF, 0x69, 0x00, 0x00, 0x00, 0x01))
 
     # IMAGE QUERY STATUS
-    QUERY_STATUS = bytearray((0xcf, 0xef, 0x69, 0x00, 0x00, 0x00, 0x01))
+    QUERY_STATUS = bytearray((0xCF, 0xEF, 0x69, 0x00, 0x00, 0x00, 0x01))
 
     # STATIC IMAGE
-    START_DISPLAY_BITMAP = bytearray((0x2c,))
-    PRE_UPDATE_BITMAP = bytearray((0x86, 0xef, 0x69, 0x00, 0x00, 0x00, 0x01))
-    UPDATE_BITMAP = bytearray((0xcc, 0xef, 0x69, 0x00))
+    START_DISPLAY_BITMAP = bytearray((0x2C,))
+    PRE_UPDATE_BITMAP = bytearray((0x86, 0xEF, 0x69, 0x00, 0x00, 0x00, 0x01))
+    UPDATE_BITMAP = bytearray((0xCC, 0xEF, 0x69, 0x00))
 
-    RESTARTSCREEN = bytearray((0x84, 0xef, 0x69, 0x00, 0x00, 0x00, 0x01))
-    DISPLAY_BITMAP = bytearray((0xc8, 0xef, 0x69, 0x00, 0x17, 0x70))
+    RESTARTSCREEN = bytearray((0x84, 0xEF, 0x69, 0x00, 0x00, 0x00, 0x01))
+    DISPLAY_BITMAP = bytearray((0xC8, 0xEF, 0x69, 0x00, 0x17, 0x70))
 
     STARTMODE_DEFAULT = bytearray((0x00,))
     STARTMODE_IMAGE = bytearray((0x01,))
@@ -97,7 +106,7 @@ class Command(Enum):
 
 class Padding(Enum):
     NULL = bytearray([0x00])
-    START_DISPLAY_BITMAP = bytearray([0x2c])
+    START_DISPLAY_BITMAP = bytearray([0x2C])
 
     def __init__(self, command):
         self.command = command
@@ -114,7 +123,7 @@ class SleepInterval(Enum):
     SEVEN = bytearray((0x07,))
     EIGHT = bytearray((0x08,))
     NINE = bytearray((0x09,))
-    TEN = bytearray((0x0a,))
+    TEN = bytearray((0x0A,))
 
     def __init__(self, command):
         self.command = command
@@ -130,8 +139,13 @@ class SubRevision(Enum):
 
 # This class is for Turing Smart Screen 5" screens
 class LcdCommRevC(LcdComm):
-    def __init__(self, com_port: str = "AUTO", display_width: int = 480, display_height: int = 800,
-                 update_queue: Optional[queue.Queue] = None):
+    def __init__(
+        self,
+        com_port: str = "AUTO",
+        display_width: int = 480,
+        display_height: int = 800,
+        update_queue: Optional[queue.Queue] = None,
+    ):
         logger.debug("HW revision: C")
         LcdComm.__init__(self, com_port, display_width, display_height, update_queue)
         self.openSerial()
@@ -144,10 +158,10 @@ class LcdCommRevC(LcdComm):
         com_ports = comports()
 
         for com_port in com_ports:
-            if com_port.serial_number == 'USB7INCH':
+            if com_port.serial_number == "USB7INCH":
                 LcdCommRevC._connect_to_reset_device_name(com_port)
                 return LcdCommRevC.auto_detect_com_port()
-            if com_port.serial_number == '20080411':
+            if com_port.serial_number == "20080411":
                 return com_port.device
 
         return None
@@ -162,8 +176,14 @@ class LcdCommRevC(LcdComm):
             pass
         time.sleep(10)
 
-    def _send_command(self, cmd: Command, payload: Optional[bytearray] = None, padding: Optional[Padding] = None,
-                      bypass_queue: bool = False, readsize: Optional[int] = None):
+    def _send_command(
+        self,
+        cmd: Command,
+        payload: Optional[bytearray] = None,
+        padding: Optional[Padding] = None,
+        bypass_queue: bool = False,
+        readsize: Optional[int] = None,
+    ):
         message = bytearray()
 
         if cmd != Command.SEND_PAYLOAD:
@@ -180,7 +200,7 @@ class LcdCommRevC(LcdComm):
         msg_size = len(message)
 
         if not (msg_size / 250).is_integer():
-            pad_size = (250 * ceil(msg_size / 250) - msg_size)
+            pad_size = 250 * ceil(msg_size / 250) - msg_size
             message += bytearray(padding.value * pad_size)
 
         # If no queue for async requests, or if asked explicitly to do the request sequentially: do request now
@@ -203,7 +223,10 @@ class LcdCommRevC(LcdComm):
         if response.startswith(SubRevision.FIVEINCH.value):
             self.sub_revision = SubRevision.FIVEINCH
         else:
-            logger.warning("Display returned unknown sub-revision on Hello answer (%s)" % str(response))
+            logger.warning(
+                "Display returned unknown sub-revision on Hello answer (%s)"
+                % str(response)
+            )
 
         logger.debug("HW sub-revision: %s" % (str(self.sub_revision)))
 
@@ -245,31 +268,49 @@ class LcdCommRevC(LcdComm):
 
     def SetBrightness(self, level: int = 25):
         # logger.info("Call SetBrightness")
-        assert 0 <= level <= 100, 'Brightness level must be [0-100]'
+        assert 0 <= level <= 100, "Brightness level must be [0-100]"
 
         # Brightness scales from 0 to 255, with 255 being the brightest and 0 being the darkest.
         # Convert our brightness % to an absolute value.
         converted_level = int((level / 100) * 255)
 
-        self._send_command(Command.SET_BRIGHTNESS, payload=bytearray((converted_level,)), bypass_queue=True)
+        self._send_command(
+            Command.SET_BRIGHTNESS,
+            payload=bytearray((converted_level,)),
+            bypass_queue=True,
+        )
 
     def SetOrientation(self, orientation: Orientation = Orientation.PORTRAIT):
         self.orientation = orientation
         # logger.info(f"Call SetOrientation to: {self.orientation.name}")
 
-        if self.orientation == Orientation.REVERSE_LANDSCAPE or self.orientation == Orientation.REVERSE_PORTRAIT:
-            b = Command.STARTMODE_DEFAULT.value + Padding.NULL.value + Command.FLIP_180.value + SleepInterval.OFF.value
+        if (
+            self.orientation == Orientation.REVERSE_LANDSCAPE
+            or self.orientation == Orientation.REVERSE_PORTRAIT
+        ):
+            b = (
+                Command.STARTMODE_DEFAULT.value
+                + Padding.NULL.value
+                + Command.FLIP_180.value
+                + SleepInterval.OFF.value
+            )
             self._send_command(Command.OPTIONS, payload=b)
         else:
-            b = Command.STARTMODE_DEFAULT.value + Padding.NULL.value + Command.NO_FLIP.value + SleepInterval.OFF.value
+            b = (
+                Command.STARTMODE_DEFAULT.value
+                + Padding.NULL.value
+                + Command.NO_FLIP.value
+                + SleepInterval.OFF.value
+            )
             self._send_command(Command.OPTIONS, payload=b)
 
     def DisplayPILImage(
-            self,
-            image: Image.Image,
-            x: int = 0, y: int = 0,
-            image_width: int = 0,
-            image_height: int = 0
+        self,
+        image: Image.Image,
+        x: int = 0,
+        y: int = 0,
+        image_width: int = 0,
+        image_height: int = 0,
     ):
         # If the image height/width isn't provided, use the native image size
         if not image_height:
@@ -286,23 +327,34 @@ class LcdCommRevC(LcdComm):
         if image_width != image.size[0] or image_height != image.size[1]:
             image = image.crop((0, 0, image_width, image_height))
 
-        assert x <= self.get_width(), 'Image X coordinate must be <= display width'
-        assert y <= self.get_height(), 'Image Y coordinate must be <= display height'
-        assert image_height > 0, 'Image height must be > 0'
-        assert image_width > 0, 'Image width must be > 0'
+        assert x <= self.get_width(), "Image X coordinate must be <= display width"
+        assert y <= self.get_height(), "Image Y coordinate must be <= display height"
+        assert image_height > 0, "Image height must be > 0"
+        assert image_width > 0, "Image width must be > 0"
 
-        if x == 0 and y == 0 and (image_width == self.get_width()) and (image_height == self.get_height()):
+        if (
+            x == 0
+            and y == 0
+            and (image_width == self.get_width())
+            and (image_height == self.get_height())
+        ):
             with self.update_queue_mutex:
                 self._send_command(Command.PRE_UPDATE_BITMAP)
-                self._send_command(Command.START_DISPLAY_BITMAP, padding=Padding.START_DISPLAY_BITMAP)
+                self._send_command(
+                    Command.START_DISPLAY_BITMAP, padding=Padding.START_DISPLAY_BITMAP
+                )
                 self._send_command(Command.DISPLAY_BITMAP)
-                self._send_command(Command.SEND_PAYLOAD,
-                                   payload=bytearray(self._generate_full_image(image)),
-                                   readsize=1024)
+                self._send_command(
+                    Command.SEND_PAYLOAD,
+                    payload=bytearray(self._generate_full_image(image)),
+                    readsize=1024,
+                )
                 self._send_command(Command.QUERY_STATUS, readsize=1024)
         else:
             with self.update_queue_mutex:
-                img, pyd = self._generate_update_image(image, x, y, Count.Start, Command.UPDATE_BITMAP)
+                img, pyd = self._generate_update_image(
+                    image, x, y, Count.Start, Command.UPDATE_BITMAP
+                )
                 self._send_command(Command.SEND_PAYLOAD, payload=pyd)
                 self._send_command(Command.SEND_PAYLOAD, payload=img)
                 self._send_command(Command.QUERY_STATUS, readsize=1024)
@@ -318,10 +370,15 @@ class LcdCommRevC(LcdComm):
 
         bgra_data = image_to_BGRA(image)
 
-        return b'\x00'.join(chunked(bgra_data, 249))
+        return b"\x00".join(chunked(bgra_data, 249))
 
     def _generate_update_image(
-        self, image: Image.Image, x: int, y: int, count: int, cmd: Optional[Command] = None
+        self,
+        image: Image.Image,
+        x: int,
+        y: int,
+        count: int,
+        cmd: Optional[Command] = None,
     ) -> Tuple[bytearray, bytearray]:
         x0, y0 = x, y
 
@@ -341,11 +398,15 @@ class LcdCommRevC(LcdComm):
         img_raw_data = bytearray()
         bgr_data = image_to_BGR(image)
         for h, line in enumerate(chunked(bgr_data, image.width * 3)):
-            img_raw_data += int(((x0 + h) * self.display_height) + y0).to_bytes(3, "big")
+            img_raw_data += int(((x0 + h) * self.display_height) + y0).to_bytes(
+                3, "big"
+            )
             img_raw_data += int(image.width).to_bytes(2, "big")
             img_raw_data += line
 
-        image_size = int(len(img_raw_data) + 2).to_bytes(3, "big") # The +2 is for the "ef69" that will be added later.
+        image_size = int(len(img_raw_data) + 2).to_bytes(
+            3, "big"
+        )  # The +2 is for the "ef69" that will be added later.
 
         # logger.debug("Render Count: {}".format(count))
         payload = bytearray()
@@ -354,10 +415,10 @@ class LcdCommRevC(LcdComm):
             payload.extend(cmd.value)
         payload.extend(image_size)
         payload.extend(Padding.NULL.value * 3)
-        payload.extend(count.to_bytes(4, 'big'))
+        payload.extend(count.to_bytes(4, "big"))
 
         if len(img_raw_data) > 250:
-            img_raw_data = bytearray(b'\x00').join(chunked(bytes(img_raw_data), 249))
-        img_raw_data += b'\xef\x69'
+            img_raw_data = bytearray(b"\x00").join(chunked(bytes(img_raw_data), 249))
+        img_raw_data += b"\xef\x69"
 
         return img_raw_data, payload

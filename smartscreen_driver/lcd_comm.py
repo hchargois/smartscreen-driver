@@ -26,12 +26,14 @@ import time
 from abc import ABC, abstractmethod
 from enum import IntEnum
 from typing import Tuple, List, Optional, Dict
+import logging
 
 import serial
 from PIL import Image, ImageDraw, ImageFont
 
-from library.log import logger
-from library.lcd.color import Color, parse_color
+from .color import Color, parse_color
+
+logger = logging.getLogger(__name__)
 
 
 class Orientation(IntEnum):
@@ -42,8 +44,13 @@ class Orientation(IntEnum):
 
 
 class LcdComm(ABC):
-    def __init__(self, com_port: str = "AUTO", display_width: int = 320, display_height: int = 480,
-                 update_queue: Optional[queue.Queue] = None):
+    def __init__(
+        self,
+        com_port: str = "AUTO",
+        display_width: int = 320,
+        display_height: int = 480,
+        update_queue: Optional[queue.Queue] = None,
+    ):
         self.lcd_serial = None
 
         # String containing absolute path to serial port e.g. "COM3", "/dev/ttyACM1" or "AUTO" for auto-discovery
@@ -70,27 +77,34 @@ class LcdComm(ABC):
         # Create a cache to store opened fonts, to avoid opening and loading from the filesystem every time
         self.font_cache: Dict[
             Tuple[str, int],  # key=(font, size)
-            ImageFont.FreeTypeFont # value= a loaded freetype font
+            ImageFont.FreeTypeFont,  # value= a loaded freetype font
         ] = {}
 
     def get_width(self) -> int:
-        if self.orientation == Orientation.PORTRAIT or self.orientation == Orientation.REVERSE_PORTRAIT:
+        if (
+            self.orientation == Orientation.PORTRAIT
+            or self.orientation == Orientation.REVERSE_PORTRAIT
+        ):
             return self.display_width
         else:
             return self.display_height
 
     def get_height(self) -> int:
-        if self.orientation == Orientation.PORTRAIT or self.orientation == Orientation.REVERSE_PORTRAIT:
+        if (
+            self.orientation == Orientation.PORTRAIT
+            or self.orientation == Orientation.REVERSE_PORTRAIT
+        ):
             return self.display_height
         else:
             return self.display_width
 
     def openSerial(self):
-        if self.com_port == 'AUTO':
+        if self.com_port == "AUTO":
             self.com_port = self.auto_detect_com_port()
             if not self.com_port:
                 logger.error(
-                    "Cannot find COM port automatically, please run Configuration again and select COM port manually")
+                    "Cannot find COM port automatically, please run Configuration again and select COM port manually"
+                )
                 try:
                     sys.exit(0)
                 except:
@@ -101,7 +115,9 @@ class LcdComm(ABC):
             logger.debug(f"Static COM port: {self.com_port}")
 
         try:
-            self.lcd_serial = serial.Serial(self.com_port, 115200, timeout=1, rtscts=True)
+            self.lcd_serial = serial.Serial(
+                self.com_port, 115200, timeout=1, rtscts=True
+            )
         except Exception as e:
             logger.error(f"Cannot open COM port {self.com_port}: {e}")
             try:
@@ -145,7 +161,8 @@ class LcdComm(ABC):
         except serial.SerialException:
             # Error writing data to device: close and reopen serial port, try to write again
             logger.error(
-                "SerialException: Failed to send serial data to device. Closing and reopening COM port before retrying once.")
+                "SerialException: Failed to send serial data to device. Closing and reopening COM port before retrying once."
+            )
             self.closeSerial()
             time.sleep(1)
             self.openSerial()
@@ -162,7 +179,8 @@ class LcdComm(ABC):
         except serial.SerialException:
             # Error writing data to device: close and reopen serial port, try to read again
             logger.error(
-                "SerialException: Failed to read serial data from device. Closing and reopening COM port before retrying once.")
+                "SerialException: Failed to read serial data from device. Closing and reopening COM port before retrying once."
+            )
             self.closeSerial()
             time.sleep(1)
             self.openSerial()
@@ -206,32 +224,35 @@ class LcdComm(ABC):
 
     @abstractmethod
     def DisplayPILImage(
-            self,
-            image: Image.Image,
-            x: int = 0, y: int = 0,
-            image_width: int = 0,
-            image_height: int = 0
+        self,
+        image: Image.Image,
+        x: int = 0,
+        y: int = 0,
+        image_width: int = 0,
+        image_height: int = 0,
     ):
         pass
 
-    def DisplayBitmap(self, bitmap_path: str, x: int = 0, y: int = 0, width: int = 0, height: int = 0):
+    def DisplayBitmap(
+        self, bitmap_path: str, x: int = 0, y: int = 0, width: int = 0, height: int = 0
+    ):
         image = self.open_image(bitmap_path)
         self.DisplayPILImage(image, x, y, width, height)
 
     def DisplayText(
-            self,
-            text: str,
-            x: int = 0,
-            y: int = 0,
-            width: int = 0,
-            height: int = 0,
-            font: str = "./res/fonts/roboto-mono/RobotoMono-Regular.ttf",
-            font_size: int = 20,
-            font_color: Color = (0, 0, 0),
-            background_color: Color = (255, 255, 255),
-            background_image: Optional[str] = None,
-            align: str = 'left',
-            anchor: str = 'la',
+        self,
+        text: str,
+        x: int = 0,
+        y: int = 0,
+        width: int = 0,
+        height: int = 0,
+        font: str = "./res/fonts/roboto-mono/RobotoMono-Regular.ttf",
+        font_size: int = 20,
+        font_color: Color = (0, 0, 0),
+        background_color: Color = (255, 255, 255),
+        background_image: Optional[str] = None,
+        align: str = "left",
+        anchor: str = "la",
     ):
         # Convert text to bitmap using PIL and display it
         # Provide the background image path to display text with transparent background
@@ -239,11 +260,19 @@ class LcdComm(ABC):
         font_color = parse_color(font_color)
         background_color = parse_color(background_color)
 
-        assert x <= self.get_width(), 'Text X coordinate ' + str(x) + ' must be <= display width ' + str(
-            self.get_width())
-        assert y <= self.get_height(), 'Text Y coordinate ' + str(y) + ' must be <= display height ' + str(
-            self.get_height())
-        assert len(text) > 0, 'Text must not be empty'
+        assert x <= self.get_width(), (
+            "Text X coordinate "
+            + str(x)
+            + " must be <= display width "
+            + str(self.get_width())
+        )
+        assert y <= self.get_height(), (
+            "Text Y coordinate "
+            + str(y)
+            + " must be <= display height "
+            + str(self.get_height())
+        )
+        assert len(text) > 0, "Text must not be empty"
         assert font_size > 0, "Font size must be > 0"
 
         # If only width is specified, assume height based on font size (one-line text)
@@ -253,9 +282,7 @@ class LcdComm(ABC):
         if background_image is None:
             # A text bitmap is created with max width/height by default : text with solid background
             text_image = Image.new(
-                'RGB',
-                (self.get_width(), self.get_height()),
-                background_color
+                "RGB", (self.get_width(), self.get_height()), background_color
             )
         else:
             # The text bitmap is created from provided background image : text with transparent background
@@ -266,7 +293,9 @@ class LcdComm(ABC):
         d = ImageDraw.Draw(text_image)
 
         if width == 0 or height == 0:
-            left, top, right, bottom = d.textbbox((x, y), text, font=ttfont, align=align, anchor=anchor)
+            left, top, right, bottom = d.textbbox(
+                (x, y), text, font=ttfont, align=align, anchor=anchor
+            )
 
             # textbbox may return float values, which is not good for the bitmap operations below.
             # Let's extend the bounding box to the next whole pixel in all directions
@@ -303,22 +332,36 @@ class LcdComm(ABC):
 
         self.DisplayPILImage(text_image, left, top)
 
-    def DisplayProgressBar(self, x: int, y: int, width: int, height: int, min_value: int = 0, max_value: int = 100,
-                           value: int = 50,
-                           bar_color: Color = (0, 0, 0),
-                           bar_outline: bool = True,
-                           background_color: Color = (255, 255, 255),
-                           background_image: Optional[str] = None):
+    def DisplayProgressBar(
+        self,
+        x: int,
+        y: int,
+        width: int,
+        height: int,
+        min_value: int = 0,
+        max_value: int = 100,
+        value: int = 50,
+        bar_color: Color = (0, 0, 0),
+        bar_outline: bool = True,
+        background_color: Color = (255, 255, 255),
+        background_image: Optional[str] = None,
+    ):
         # Generate a progress bar and display it
         # Provide the background image path to display progress bar with transparent background
 
         bar_color = parse_color(bar_color)
         background_color = parse_color(background_color)
 
-        assert x <= self.get_width(), 'Progress bar X coordinate must be <= display width'
-        assert y <= self.get_height(), 'Progress bar Y coordinate must be <= display height'
-        assert x + width <= self.get_width(), 'Progress bar width exceeds display width'
-        assert y + height <= self.get_height(), 'Progress bar height exceeds display height'
+        assert (
+            x <= self.get_width()
+        ), "Progress bar X coordinate must be <= display width"
+        assert (
+            y <= self.get_height()
+        ), "Progress bar Y coordinate must be <= display height"
+        assert x + width <= self.get_width(), "Progress bar width exceeds display width"
+        assert (
+            y + height <= self.get_height()
+        ), "Progress bar height exceeds display height"
 
         # Don't let the set value exceed our min or max value, this is bad :)
         if value < min_value:
@@ -326,11 +369,13 @@ class LcdComm(ABC):
         elif max_value < value:
             value = max_value
 
-        assert min_value <= value <= max_value, 'Progress bar value shall be between min and max'
+        assert (
+            min_value <= value <= max_value
+        ), "Progress bar value shall be between min and max"
 
         if background_image is None:
             # A bitmap is created with solid background
-            bar_image = Image.new('RGB', (width, height), background_color)
+            bar_image = Image.new("RGB", (width, height), background_color)
         else:
             # A bitmap is created from provided background image
             bar_image = self.open_image(background_image)
@@ -343,7 +388,9 @@ class LcdComm(ABC):
         if bar_filled_width < 0:
             bar_filled_width = 0
         draw = ImageDraw.Draw(bar_image)
-        draw.rectangle([0, 0, bar_filled_width, height - 1], fill=bar_color, outline=bar_color)
+        draw.rectangle(
+            [0, 0, bar_filled_width, height - 1], fill=bar_color, outline=bar_color
+        )
 
         if bar_outline:
             # Draw outline
@@ -351,19 +398,25 @@ class LcdComm(ABC):
 
         self.DisplayPILImage(bar_image, x, y)
 
-    def DisplayLineGraph(self, x: int, y: int, width: int, height: int,
-                         values: List[float],
-                         min_value: float = 0,
-                         max_value: float = 100,
-                         autoscale: bool = False,
-                         line_color: Color = (0, 0, 0),
-                         line_width: int = 2,
-                         graph_axis: bool = True,
-                         axis_color: Color = (0, 0, 0),
-                         axis_font: str = "./res/fonts/roboto/Roboto-Black.ttf",
-                         axis_font_size: int = 10,
-                         background_color: Color = (255, 255, 255),
-                         background_image: Optional[str] = None):
+    def DisplayLineGraph(
+        self,
+        x: int,
+        y: int,
+        width: int,
+        height: int,
+        values: List[float],
+        min_value: float = 0,
+        max_value: float = 100,
+        autoscale: bool = False,
+        line_color: Color = (0, 0, 0),
+        line_width: int = 2,
+        graph_axis: bool = True,
+        axis_color: Color = (0, 0, 0),
+        axis_font: str = "./res/fonts/roboto/Roboto-Black.ttf",
+        axis_font_size: int = 10,
+        background_color: Color = (255, 255, 255),
+        background_image: Optional[str] = None,
+    ):
         # Generate a plot graph and display it
         # Provide the background image path to display plot graph with transparent background
 
@@ -371,14 +424,20 @@ class LcdComm(ABC):
         axis_color = parse_color(axis_color)
         background_color = parse_color(background_color)
 
-        assert x <= self.get_width(), 'Progress bar X coordinate must be <= display width'
-        assert y <= self.get_height(), 'Progress bar Y coordinate must be <= display height'
-        assert x + width <= self.get_width(), 'Progress bar width exceeds display width'
-        assert y + height <= self.get_height(), 'Progress bar height exceeds display height'
+        assert (
+            x <= self.get_width()
+        ), "Progress bar X coordinate must be <= display width"
+        assert (
+            y <= self.get_height()
+        ), "Progress bar Y coordinate must be <= display height"
+        assert x + width <= self.get_width(), "Progress bar width exceeds display width"
+        assert (
+            y + height <= self.get_height()
+        ), "Progress bar height exceeds display height"
 
         if background_image is None:
             # A bitmap is created with solid background
-            graph_image = Image.new('RGB', (width, height), background_color)
+            graph_image = Image.new("RGB", (width, height), background_color)
         else:
             # A bitmap is created from provided background image
             graph_image = self.open_image(background_image)
@@ -410,13 +469,15 @@ class LcdComm(ABC):
         count = 0
         for value in values:
             if not math.isnan(value):
-                # Don't let the set value exceed our min or max value, this is bad :)                
+                # Don't let the set value exceed our min or max value, this is bad :)
                 if value < min_value:
                     value = min_value
                 elif max_value < value:
                     value = max_value
 
-                assert min_value <= value <= max_value, 'Plot point value shall be between min and max'
+                assert (
+                    min_value <= value <= max_value
+                ), "Plot point value shall be between min and max"
 
                 plotsX.append(count * step)
                 plotsY.append(height - (value - min_value) * yScale)
@@ -437,61 +498,86 @@ class LcdComm(ABC):
             text = f"{int(max_value)}"
             ttfont = self.open_font(axis_font, axis_font_size)
             _, top, right, bottom = ttfont.getbbox(text)
-            draw.text((2, 0 - top), text,
-                      font=ttfont, fill=axis_color)
+            draw.text((2, 0 - top), text, font=ttfont, fill=axis_color)
 
             text = f"{int(min_value)}"
             _, top, right, bottom = ttfont.getbbox(text)
-            draw.text((width - 1 - right, height - 2 - bottom), text,
-                      font=ttfont, fill=axis_color)
+            draw.text(
+                (width - 1 - right, height - 2 - bottom),
+                text,
+                font=ttfont,
+                fill=axis_color,
+            )
 
         self.DisplayPILImage(graph_image, x, y)
 
-    def DrawRadialDecoration(self, draw: ImageDraw.ImageDraw, angle: float, radius: float, width: float, color: Tuple[int, int, int] = (0, 0, 0)):
-        i_cos = math.cos(angle*math.pi/180)
-        i_sin = math.sin(angle*math.pi/180)
-        x_f = (i_cos * (radius - width/2)) + radius
+    def DrawRadialDecoration(
+        self,
+        draw: ImageDraw.ImageDraw,
+        angle: float,
+        radius: float,
+        width: float,
+        color: Tuple[int, int, int] = (0, 0, 0),
+    ):
+        i_cos = math.cos(angle * math.pi / 180)
+        i_sin = math.sin(angle * math.pi / 180)
+        x_f = (i_cos * (radius - width / 2)) + radius
         if math.modf(x_f) == 0.5:
             if i_cos > 0:
                 x_f = math.floor(x_f)
             else:
                 x_f = math.ceil(x_f)
         else:
-             x_f = math.floor(x_f + 0.5) 
-            
-        y_f = (i_sin * (radius - width/2)) + radius 
+            x_f = math.floor(x_f + 0.5)
+
+        y_f = (i_sin * (radius - width / 2)) + radius
         if math.modf(y_f) == 0.5:
             if i_sin > 0:
                 y_f = math.floor(y_f)
             else:
                 y_f = math.ceil(y_f)
         else:
-            y_f = math.floor(y_f + 0.5)            
-        draw.ellipse([x_f - width/2, y_f - width/2, x_f + width/2, y_f - 1 + width/2 - 1], outline=color, fill=color, width=1)   
-      
+            y_f = math.floor(y_f + 0.5)
+        draw.ellipse(
+            [
+                x_f - width / 2,
+                y_f - width / 2,
+                x_f + width / 2,
+                y_f - 1 + width / 2 - 1,
+            ],
+            outline=color,
+            fill=color,
+            width=1,
+        )
 
-    def DisplayRadialProgressBar(self, xc: int, yc: int, radius: int, bar_width: int,
-                                 min_value: int = 0,
-                                 max_value: int = 100,
-                                 angle_start: float = 0,
-                                 angle_end: float = 360,
-                                 angle_sep: int = 5,
-                                 angle_steps: int = 10,
-                                 clockwise: bool = True,
-                                 value: int = 50,
-                                 text: Optional[str] = None,
-                                 with_text: bool = True,
-                                 font: str = "./res/fonts/roboto/Roboto-Black.ttf",
-                                 font_size: int = 20,
-                                 font_color: Color = (0, 0, 0),
-                                 bar_color: Color = (0, 0, 0),
-                                 background_color: Color = (255, 255, 255),
-                                 background_image: Optional[str] = None,
-                                 custom_bbox: Tuple[int, int, int, int] = (0, 0, 0, 0),
-                                 text_offset: Tuple[int, int] = (0,0),
-                                 bar_background_color: Color = (0, 0, 0),
-                                 draw_bar_background: bool = False,
-                                 bar_decoration: str = ""):                                 
+    def DisplayRadialProgressBar(
+        self,
+        xc: int,
+        yc: int,
+        radius: int,
+        bar_width: int,
+        min_value: int = 0,
+        max_value: int = 100,
+        angle_start: float = 0,
+        angle_end: float = 360,
+        angle_sep: int = 5,
+        angle_steps: int = 10,
+        clockwise: bool = True,
+        value: int = 50,
+        text: Optional[str] = None,
+        with_text: bool = True,
+        font: str = "./res/fonts/roboto/Roboto-Black.ttf",
+        font_size: int = 20,
+        font_color: Color = (0, 0, 0),
+        bar_color: Color = (0, 0, 0),
+        background_color: Color = (255, 255, 255),
+        background_image: Optional[str] = None,
+        custom_bbox: Tuple[int, int, int, int] = (0, 0, 0, 0),
+        text_offset: Tuple[int, int] = (0, 0),
+        bar_background_color: Color = (0, 0, 0),
+        draw_bar_background: bool = False,
+        bar_decoration: str = "",
+    ):
         # Generate a radial progress bar and display it
         # Provide the background image path to display progress bar with transparent background
 
@@ -506,14 +592,24 @@ class LcdComm(ABC):
             else:
                 angle_end += 0.1
 
-        assert xc - radius >= 0 and xc + radius <= self.get_width(), 'Progress bar width exceeds display width'
-        assert yc - radius >= 0 and yc + radius <= self.get_height(), 'Progress bar height exceeds display height'
-        assert 0 < bar_width <= radius, f'Progress bar linewidth is {bar_width}, must be > 0 and <= radius'
-        assert angle_end % 361 != angle_start % 361, f'Invalid angles values, start = {angle_start}, end = {angle_end}'
-        assert isinstance(angle_steps, int), 'angle_steps value must be an integer'
-        assert angle_sep >= 0, 'Provide an angle_sep value >= 0'
-        assert angle_steps > 0, 'Provide an angle_step value > 0'
-        assert angle_sep * angle_steps < 360, 'Given angle_sep and angle_steps values are not correctly set'
+        assert (
+            xc - radius >= 0 and xc + radius <= self.get_width()
+        ), "Progress bar width exceeds display width"
+        assert (
+            yc - radius >= 0 and yc + radius <= self.get_height()
+        ), "Progress bar height exceeds display height"
+        assert (
+            0 < bar_width <= radius
+        ), f"Progress bar linewidth is {bar_width}, must be > 0 and <= radius"
+        assert (
+            angle_end % 361 != angle_start % 361
+        ), f"Invalid angles values, start = {angle_start}, end = {angle_end}"
+        assert isinstance(angle_steps, int), "angle_steps value must be an integer"
+        assert angle_sep >= 0, "Provide an angle_sep value >= 0"
+        assert angle_steps > 0, "Provide an angle_step value > 0"
+        assert (
+            angle_sep * angle_steps < 360
+        ), "Given angle_sep and angle_steps values are not correctly set"
 
         # Don't let the set value exceed our min or max value, this is bad :)
         if value < min_value:
@@ -521,14 +617,16 @@ class LcdComm(ABC):
         elif max_value < value:
             value = max_value
 
-        assert min_value <= value <= max_value, 'Progress bar value shall be between min and max'
+        assert (
+            min_value <= value <= max_value
+        ), "Progress bar value shall be between min and max"
 
         diameter = 2 * radius
         bbox = (xc - radius, yc - radius, xc + radius, yc + radius)
         #
         if background_image is None:
             # A bitmap is created with solid background
-            bar_image = Image.new('RGB', (diameter, diameter), background_color)
+            bar_image = Image.new("RGB", (diameter, diameter), background_color)
         else:
             # A bitmap is created from provided background image
             bar_image = self.open_image(background_image)
@@ -560,13 +658,37 @@ class LcdComm(ABC):
                 else:
                     angleS = angle_start
                     angleE = angle_start + ecart
-                draw.arc([0, 0, diameter - 1, diameter - 1], angleS, angleE, fill=bar_background_color, width=bar_width) 
-                
+                draw.arc(
+                    [0, 0, diameter - 1, diameter - 1],
+                    angleS,
+                    angleE,
+                    fill=bar_background_color,
+                    width=bar_width,
+                )
+
             # draw bar decoration
             if bar_decoration == "Ellipse":
-                self.DrawRadialDecoration(draw = draw, angle = angle_end, radius = radius, width = bar_width, color = bar_background_color)
-                self.DrawRadialDecoration(draw = draw, angle = angle_start, radius = radius, width = bar_width, color = bar_color)
-                self.DrawRadialDecoration(draw = draw, angle = angle_start + pct * ecart, radius = radius, width = bar_width, color = bar_color)
+                self.DrawRadialDecoration(
+                    draw=draw,
+                    angle=angle_end,
+                    radius=radius,
+                    width=bar_width,
+                    color=bar_background_color,
+                )
+                self.DrawRadialDecoration(
+                    draw=draw,
+                    angle=angle_start,
+                    radius=radius,
+                    width=bar_width,
+                    color=bar_color,
+                )
+                self.DrawRadialDecoration(
+                    draw=draw,
+                    angle=angle_start + pct * ecart,
+                    radius=radius,
+                    width=bar_width,
+                    color=bar_color,
+                )
 
             #
             # solid bar case
@@ -577,25 +699,34 @@ class LcdComm(ABC):
                 else:
                     angleS = angle_start
                     angleE = angle_start + pct * ecart
-                draw.arc([0, 0, diameter - 1, diameter - 1], angleS, angleE,
-                         fill=bar_color, width=bar_width)
+                draw.arc(
+                    [0, 0, diameter - 1, diameter - 1],
+                    angleS,
+                    angleE,
+                    fill=bar_color,
+                    width=bar_width,
+                )
             # discontinued bar case
             else:
                 angleE = angle_start + pct * ecart
                 angle_complet = ecart / angle_steps
                 etapes = int((angleE - angle_start) / angle_complet)
                 for i in range(etapes):
-                    draw.arc([0, 0, diameter - 1, diameter - 1],
-                             angle_start + i * angle_complet,
-                             angle_start + (i + 1) * angle_complet - angle_sep,
-                             fill=bar_color,
-                             width=bar_width)
+                    draw.arc(
+                        [0, 0, diameter - 1, diameter - 1],
+                        angle_start + i * angle_complet,
+                        angle_start + (i + 1) * angle_complet - angle_sep,
+                        fill=bar_color,
+                        width=bar_width,
+                    )
 
-                draw.arc([0, 0, diameter - 1, diameter - 1],
-                         angle_start + etapes * angle_complet,
-                         angleE,
-                         fill=bar_color,
-                         width=bar_width)
+                draw.arc(
+                    [0, 0, diameter - 1, diameter - 1],
+                    angle_start + etapes * angle_complet,
+                    angleE,
+                    fill=bar_color,
+                    width=bar_width,
+                )
         else:
             if angle_end < angle_start:
                 ecart = angle_start - angle_end
@@ -610,16 +741,39 @@ class LcdComm(ABC):
                 else:
                     angleS = angle_start - ecart
                     angleE = angle_start
-                draw.arc([0, 0, diameter - 1, diameter - 1], angleS, angleE, fill=bar_background_color, width=bar_width) 
-
+                draw.arc(
+                    [0, 0, diameter - 1, diameter - 1],
+                    angleS,
+                    angleE,
+                    fill=bar_background_color,
+                    width=bar_width,
+                )
 
             # draw bar decoration
             if bar_decoration == "Ellipse":
-                self.DrawRadialDecoration(draw = draw, angle = angle_end, radius = radius, width = bar_width, color = bar_background_color)
-                self.DrawRadialDecoration(draw = draw, angle = angle_start, radius = radius, width = bar_width, color = bar_color)
-                self.DrawRadialDecoration(draw = draw, angle = angle_start - pct * ecart, radius = radius, width = bar_width, color = bar_color)
+                self.DrawRadialDecoration(
+                    draw=draw,
+                    angle=angle_end,
+                    radius=radius,
+                    width=bar_width,
+                    color=bar_background_color,
+                )
+                self.DrawRadialDecoration(
+                    draw=draw,
+                    angle=angle_start,
+                    radius=radius,
+                    width=bar_width,
+                    color=bar_color,
+                )
+                self.DrawRadialDecoration(
+                    draw=draw,
+                    angle=angle_start - pct * ecart,
+                    radius=radius,
+                    width=bar_width,
+                    color=bar_color,
+                )
 
-            #      
+            #
             # solid bar case
             if angle_sep == 0:
                 if angle_end < angle_start:
@@ -628,25 +782,34 @@ class LcdComm(ABC):
                 else:
                     angleS = angle_start - pct * ecart
                     angleE = angle_start
-                draw.arc([0, 0, diameter - 1, diameter - 1], angleS, angleE,
-                         fill=bar_color, width=bar_width)
+                draw.arc(
+                    [0, 0, diameter - 1, diameter - 1],
+                    angleS,
+                    angleE,
+                    fill=bar_color,
+                    width=bar_width,
+                )
             # discontinued bar case
             else:
                 angleS = angle_start - pct * ecart
                 angle_complet = ecart / angle_steps
                 etapes = int((angle_start - angleS) / angle_complet)
                 for i in range(etapes):
-                    draw.arc([0, 0, diameter - 1, diameter - 1],
-                             angle_start - (i + 1) * angle_complet + angle_sep,
-                             angle_start - i * angle_complet,
-                             fill=bar_color,
-                             width=bar_width)
+                    draw.arc(
+                        [0, 0, diameter - 1, diameter - 1],
+                        angle_start - (i + 1) * angle_complet + angle_sep,
+                        angle_start - i * angle_complet,
+                        fill=bar_color,
+                        width=bar_width,
+                    )
 
-                draw.arc([0, 0, diameter - 1, diameter - 1],
-                         angleS,
-                         angle_start - etapes * angle_complet,
-                         fill=bar_color,
-                         width=bar_width)
+                draw.arc(
+                    [0, 0, diameter - 1, diameter - 1],
+                    angleS,
+                    angle_start - etapes * angle_complet,
+                    fill=bar_color,
+                    width=bar_width,
+                )
 
         # Draw text
         if with_text:
@@ -655,14 +818,29 @@ class LcdComm(ABC):
             ttfont = self.open_font(font, font_size)
             left, top, right, bottom = ttfont.getbbox(text)
             w, h = right - left, bottom - top
-            draw.text((radius - w / 2 + text_offset[0], radius - top - h / 2 + text_offset[1]), text,
-                      font=ttfont, fill=font_color)
+            draw.text(
+                (
+                    radius - w / 2 + text_offset[0],
+                    radius - top - h / 2 + text_offset[1],
+                ),
+                text,
+                font=ttfont,
+                fill=font_color,
+            )
 
-        if custom_bbox[0] != 0 or custom_bbox[1] != 0 or custom_bbox[2] != 0 or custom_bbox[3] != 0:
+        if (
+            custom_bbox[0] != 0
+            or custom_bbox[1] != 0
+            or custom_bbox[2] != 0
+            or custom_bbox[3] != 0
+        ):
             bar_image = bar_image.crop(box=custom_bbox)
 
-        self.DisplayPILImage(bar_image, xc - radius + custom_bbox[0], yc - radius + custom_bbox[1])
-       # self.DisplayPILImage(bar_image, xc - radius, yc - radius)
+        self.DisplayPILImage(
+            bar_image, xc - radius + custom_bbox[0], yc - radius + custom_bbox[1]
+        )
+
+    # self.DisplayPILImage(bar_image, xc - radius, yc - radius)
 
     # Load image from the filesystem, or get from the cache if it has already been loaded previously
     def open_image(self, bitmap_path: str) -> Image.Image:

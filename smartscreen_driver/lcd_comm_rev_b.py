@@ -17,11 +17,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import logging
+
 from serial.tools.list_ports import comports
 
-from library.lcd.lcd_comm import *
-from library.lcd.serialize import image_to_RGB565, chunked
-from library.log import logger
+from .lcd_comm import *
+from .serialize import image_to_RGB565, chunked
+
+logger = logging.getLogger(__name__)
 
 
 class Command(IntEnum):
@@ -49,21 +52,32 @@ class SubRevision(IntEnum):
 
 # This class is for XuanFang (rev. B & flagship) 3.5" screens
 class LcdCommRevB(LcdComm):
-    def __init__(self, com_port: str = "AUTO", display_width: int = 320, display_height: int = 480,
-                 update_queue: Optional[queue.Queue] = None):
+    def __init__(
+        self,
+        com_port: str = "AUTO",
+        display_width: int = 320,
+        display_height: int = 480,
+        update_queue: Optional[queue.Queue] = None,
+    ):
         logger.debug("HW revision: B")
         LcdComm.__init__(self, com_port, display_width, display_height, update_queue)
         self.openSerial()
-        self.sub_revision = SubRevision.A01  # Run a Hello command to detect correct sub-rev.
+        self.sub_revision = (
+            SubRevision.A01
+        )  # Run a Hello command to detect correct sub-rev.
 
     def __del__(self):
         self.closeSerial()
 
     def is_flagship(self):
-        return self.sub_revision == SubRevision.A02 or self.sub_revision == SubRevision.A12
+        return (
+            self.sub_revision == SubRevision.A02 or self.sub_revision == SubRevision.A12
+        )
 
     def is_brightness_range(self):
-        return self.sub_revision == SubRevision.A11 or self.sub_revision == SubRevision.A12
+        return (
+            self.sub_revision == SubRevision.A11 or self.sub_revision == SubRevision.A12
+        )
 
     @staticmethod
     def auto_detect_com_port() -> Optional[str]:
@@ -105,7 +119,7 @@ class LcdCommRevB(LcdComm):
                 self.update_queue.put((self.WriteData, [byteBuffer]))
 
     def _hello(self):
-        hello = [ord('H'), ord('E'), ord('L'), ord('L'), ord('O')]
+        hello = [ord("H"), ord("E"), ord("L"), ord("L"), ord("O")]
 
         # This command reads LCD answer on serial link, so it bypasses the queue
         self.SendCommand(Command.HELLO, payload=hello, bypass_queue=True)
@@ -118,7 +132,9 @@ class LcdCommRevB(LcdComm):
         if response[0] != Command.HELLO or response[-1] != Command.HELLO:
             logger.warning("Device not recognised (bad framing)")
         if [x for x in response[1:6]] != hello:
-            logger.warning("Device not recognised (No HELLO; got %r)" % (response[1:6],))
+            logger.warning(
+                "Device not recognised (No HELLO; got %r)" % (response[1:6],)
+            )
         # The HELLO response here is followed by 2 bytes
         # This is the screen version (not like the revision which is B/flagship)
         # The version is used to determine what capabilities the screen offers (see SubRevision class above)
@@ -164,7 +180,7 @@ class LcdCommRevB(LcdComm):
         self.SetBrightness()
 
     def SetBrightness(self, level: int = 25):
-        assert 0 <= level <= 100, 'Brightness level must be [0-100]'
+        assert 0 <= level <= 100, "Brightness level must be [0-100]"
 
         if self.is_brightness_range():
             # Brightness scales from 0 to 255, with 255 being the brightest and 0 being the darkest.
@@ -182,30 +198,45 @@ class LcdCommRevB(LcdComm):
         if self.is_flagship():
             self.SendCommand(Command.SET_LIGHTING, payload=list(led_color))
         else:
-            logger.info("Only HW revision 'flagship' supports backplate LED color setting")
+            logger.info(
+                "Only HW revision 'flagship' supports backplate LED color setting"
+            )
 
     def SetOrientation(self, orientation: Orientation = Orientation.PORTRAIT):
         # In revision B, basic orientations (portrait / landscape) are managed by the display
         # The reverse orientations (reverse portrait / reverse landscape) are software-managed
         self.orientation = orientation
-        if self.orientation == Orientation.PORTRAIT or self.orientation == Orientation.REVERSE_PORTRAIT:
-            self.SendCommand(Command.SET_ORIENTATION, payload=[OrientationValueRevB.ORIENTATION_PORTRAIT])
+        if (
+            self.orientation == Orientation.PORTRAIT
+            or self.orientation == Orientation.REVERSE_PORTRAIT
+        ):
+            self.SendCommand(
+                Command.SET_ORIENTATION,
+                payload=[OrientationValueRevB.ORIENTATION_PORTRAIT],
+            )
         else:
-            self.SendCommand(Command.SET_ORIENTATION, payload=[OrientationValueRevB.ORIENTATION_LANDSCAPE])
+            self.SendCommand(
+                Command.SET_ORIENTATION,
+                payload=[OrientationValueRevB.ORIENTATION_LANDSCAPE],
+            )
 
     def serialize_image(self, image: Image.Image, height: int, width: int) -> bytes:
         if image.width != width or image.height != height:
             image = image.crop((0, 0, width, height))
-        if self.orientation == Orientation.REVERSE_PORTRAIT or self.orientation == Orientation.REVERSE_LANDSCAPE:
+        if (
+            self.orientation == Orientation.REVERSE_PORTRAIT
+            or self.orientation == Orientation.REVERSE_LANDSCAPE
+        ):
             image = image.rotate(180)
         return image_to_RGB565(image, "big")
 
     def DisplayPILImage(
-            self,
-            image: Image.Image,
-            x: int = 0, y: int = 0,
-            image_width: int = 0,
-            image_height: int = 0
+        self,
+        image: Image.Image,
+        x: int = 0,
+        y: int = 0,
+        image_width: int = 0,
+        image_height: int = 0,
     ):
         # If the image height/width isn't provided, use the native image size
         if not image_height:
@@ -219,24 +250,38 @@ class LcdCommRevB(LcdComm):
         if image.size[0] > self.get_width():
             image_width = self.get_width()
 
-        assert x <= self.get_width(), 'Image X coordinate must be <= display width'
-        assert y <= self.get_height(), 'Image Y coordinate must be <= display height'
-        assert image_height > 0, 'Image height must be > 0'
-        assert image_width > 0, 'Image width must be > 0'
+        assert x <= self.get_width(), "Image X coordinate must be <= display width"
+        assert y <= self.get_height(), "Image Y coordinate must be <= display height"
+        assert image_height > 0, "Image height must be > 0"
+        assert image_width > 0, "Image width must be > 0"
 
-        if self.orientation == Orientation.PORTRAIT or self.orientation == Orientation.LANDSCAPE:
+        if (
+            self.orientation == Orientation.PORTRAIT
+            or self.orientation == Orientation.LANDSCAPE
+        ):
             (x0, y0) = (x, y)
             (x1, y1) = (x + image_width - 1, y + image_height - 1)
         else:
             # Reverse landscape/portrait orientations are software-managed: get new coordinates
-            (x0, y0) = (self.get_width() - x - image_width, self.get_height() - y - image_height)
+            (x0, y0) = (
+                self.get_width() - x - image_width,
+                self.get_height() - y - image_height,
+            )
             (x1, y1) = (self.get_width() - x - 1, self.get_height() - y - 1)
 
-        self.SendCommand(Command.DISPLAY_BITMAP,
-                         payload=[(x0 >> 8) & 255, x0 & 255,
-                                  (y0 >> 8) & 255, y0 & 255,
-                                  (x1 >> 8) & 255, x1 & 255,
-                                  (y1 >> 8) & 255, y1 & 255])
+        self.SendCommand(
+            Command.DISPLAY_BITMAP,
+            payload=[
+                (x0 >> 8) & 255,
+                x0 & 255,
+                (y0 >> 8) & 255,
+                y0 & 255,
+                (x1 >> 8) & 255,
+                x1 & 255,
+                (y1 >> 8) & 255,
+                y1 & 255,
+            ],
+        )
 
         rgb565be = self.serialize_image(image, image_height, image_width)
 

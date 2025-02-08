@@ -17,31 +17,42 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from enum import Enum
+import logging
 
 from serial.tools.list_ports import comports
 
-from library.lcd.lcd_comm import *
-from library.lcd.serialize import image_to_RGB565, chunked
-from library.log import logger
+from .lcd_comm import *
+from .serialize import image_to_RGB565, chunked
+
+logger = logging.getLogger(__name__)
 
 
 class Command(Enum):
     GETINFO = bytearray((71, 00, 00, 00))
-    SETORG = bytearray((67, 72, 00, 00))       # Set portrait orientation
-    SET180 = bytearray((67, 71, 00, 00))       # Set reverse portrait orientation
-    SETHF = bytearray((67, 68, 00, 00))        # Set portrait orientation with horizontal mirroring
-    SETVF = bytearray((67, 70, 00, 00))        # Set reverse portrait orientation with horizontal mirroring
-    SETBL = bytearray((67, 67))                # Brightness setting
-    DISPCOLOR = bytearray((67, 66))            # Display RGB565 color on whole screen
-    BLOCKWRITE = bytearray((67, 65))           # Send bitmap size
+    SETORG = bytearray((67, 72, 00, 00))  # Set portrait orientation
+    SET180 = bytearray((67, 71, 00, 00))  # Set reverse portrait orientation
+    SETHF = bytearray(
+        (67, 68, 00, 00)
+    )  # Set portrait orientation with horizontal mirroring
+    SETVF = bytearray(
+        (67, 70, 00, 00)
+    )  # Set reverse portrait orientation with horizontal mirroring
+    SETBL = bytearray((67, 67))  # Brightness setting
+    DISPCOLOR = bytearray((67, 66))  # Display RGB565 color on whole screen
+    BLOCKWRITE = bytearray((67, 65))  # Send bitmap size
     INTOPICMODE = bytearray((68, 00, 00, 00))  # Start bitmap transmission
-    OUTPICMODE = bytearray((65, 00, 00, 00))   # End bitmap transmission
+    OUTPICMODE = bytearray((65, 00, 00, 00))  # End bitmap transmission
 
 
 # This class is for Kipye Qiye Smart Display 3.5"
 class LcdCommRevD(LcdComm):
-    def __init__(self, com_port: str = "AUTO", display_width: int = 320, display_height: int = 480,
-                 update_queue: Optional[queue.Queue] = None):
+    def __init__(
+        self,
+        com_port: str = "AUTO",
+        display_width: int = 320,
+        display_height: int = 480,
+        update_queue: Optional[queue.Queue] = None,
+    ):
         logger.debug("HW revision: D")
         LcdComm.__init__(self, com_port, display_width, display_height, update_queue)
         self.openSerial()
@@ -55,7 +66,7 @@ class LcdCommRevD(LcdComm):
         auto_com_port = None
 
         for com_port in com_ports:
-            if com_port.vid == 0x454d and com_port.pid == 0x4e41:
+            if com_port.vid == 0x454D and com_port.pid == 0x4E41:
                 auto_com_port = com_port.device
                 break
 
@@ -67,7 +78,12 @@ class LcdCommRevD(LcdComm):
         # Empty the input buffer after each write: we don't process acknowledgements the screen sends back
         self.serial_flush_input()
 
-    def SendCommand(self, cmd: Command, payload: Optional[bytearray] = None, bypass_queue: bool = False):
+    def SendCommand(
+        self,
+        cmd: Command,
+        payload: Optional[bytearray] = None,
+        bypass_queue: bool = False,
+    ):
         message = bytearray(cmd.value)
 
         if payload:
@@ -103,7 +119,7 @@ class LcdCommRevD(LcdComm):
         self.SetBrightness()
 
     def SetBrightness(self, level: int = 25):
-        assert 0 <= level <= 100, 'Brightness level must be [0-100]'
+        assert 0 <= level <= 100, "Brightness level must be [0-100]"
 
         # Brightness scales from 0 to 500, with 500 being the brightest and 0 being the darkest.
         # Convert our brightness % to an absolute value.
@@ -120,17 +136,21 @@ class LcdCommRevD(LcdComm):
         # Basic orientations (portrait / landscape) are software-managed because screen commands only support portrait
         self.orientation = orientation
 
-        if self.orientation == Orientation.REVERSE_LANDSCAPE or self.orientation == Orientation.REVERSE_PORTRAIT:
+        if (
+            self.orientation == Orientation.REVERSE_LANDSCAPE
+            or self.orientation == Orientation.REVERSE_PORTRAIT
+        ):
             self.SendCommand(cmd=Command.SET180)
         else:
             self.SendCommand(cmd=Command.SETORG)
 
     def DisplayPILImage(
-            self,
-            image: Image.Image,
-            x: int = 0, y: int = 0,
-            image_width: int = 0,
-            image_height: int = 0
+        self,
+        image: Image.Image,
+        x: int = 0,
+        y: int = 0,
+        image_width: int = 0,
+        image_height: int = 0,
     ):
         width, height = self.get_width(), self.get_height()
 
@@ -140,10 +160,10 @@ class LcdCommRevD(LcdComm):
         if not image_width:
             image_width = image.size[0]
 
-        assert x <= width, 'Image X coordinate must be <= display width'
-        assert y <= height, 'Image Y coordinate must be <= display height'
-        assert image_height > 0, 'Image height must be > 0'
-        assert image_width > 0, 'Image width must be > 0'
+        assert x <= width, "Image X coordinate must be <= display width"
+        assert y <= height, "Image Y coordinate must be <= display height"
+        assert image_height > 0, "Image height must be > 0"
+        assert image_width > 0, "Image width must be > 0"
 
         # If our image size + the (x, y) position offsets are bigger than
         # our display, reduce the image size to fit our screen
@@ -155,7 +175,10 @@ class LcdCommRevD(LcdComm):
         if image_width != image.size[0] or image_height != image.size[1]:
             image = image.crop((0, 0, image_width, image_height))
 
-        if self.orientation == Orientation.PORTRAIT or self.orientation == Orientation.REVERSE_PORTRAIT:
+        if (
+            self.orientation == Orientation.PORTRAIT
+            or self.orientation == Orientation.REVERSE_PORTRAIT
+        ):
             (x0, y0) = (x, y)
             (x1, y1) = (x + image_width - 1, y + image_height - 1)
         else:
