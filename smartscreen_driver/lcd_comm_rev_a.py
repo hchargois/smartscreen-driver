@@ -17,13 +17,15 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import time
-from enum import Enum
+import queue
+from enum import Enum, IntEnum
 from typing import Optional
 import logging
 
 from serial.tools.list_ports import comports
+from PIL import Image
 
-from .lcd_comm import *
+from .lcd_comm import LcdComm, Orientation
 from .serialize import image_to_rgb565, chunked
 
 logger = logging.getLogger(__name__)

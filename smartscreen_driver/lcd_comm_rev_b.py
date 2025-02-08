@@ -18,10 +18,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import logging
+from typing import Optional, Tuple
+import queue
+from enum import IntEnum
 
 from serial.tools.list_ports import comports
+from PIL import Image
 
-from .lcd_comm import *
+from .lcd_comm import LcdComm, Orientation
 from .serialize import image_to_rgb565, chunked
 
 logger = logging.getLogger(__name__)
