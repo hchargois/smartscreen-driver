@@ -69,35 +69,37 @@ if is_posix:
 
 # Build your LcdComm object based on the HW revision
 lcd_comm = None
-if REVISION == "A":
-    logger.info(
-        'Selected Hardware Revision A (Turing Smart Screen 3.5" & UsbPCMonitor 3.5"/5")'
-    )
-    # NOTE: If you have UsbPCMonitor 5" you need to change the width/height to 480x800 below
-    lcd_comm = LcdCommRevA(com_port=COM_PORT, display_width=320, display_height=480)
-elif REVISION == "B":
-    logger.info(
-        'Selected Hardware Revision B (XuanFang screen 3.5" version B / flagship)'
-    )
-    lcd_comm = LcdCommRevB(com_port=COM_PORT)
-elif REVISION == "C":
-    logger.info('Selected Hardware Revision C (Turing Smart Screen 5")')
-    lcd_comm = LcdCommRevC(com_port=COM_PORT)
-elif REVISION == "D":
-    logger.info('Selected Hardware Revision D (Kipye Qiye Smart Display 3.5")')
-    lcd_comm = LcdCommRevD(com_port=COM_PORT)
-elif REVISION == "SIMU":
-    logger.info('Selected 3.5" Simulated LCD')
-    lcd_comm = LcdSimulated(display_width=320, display_height=480)
-elif REVISION == "SIMU5":
-    logger.info('Selected 5" Simulated LCD')
-    lcd_comm = LcdSimulated(display_width=480, display_height=800)
-else:
-    logger.error("Unknown revision")
-    try:
+
+try:
+    if REVISION == "A":
+        logger.info(
+            'Selected Hardware Revision A (Turing Smart Screen 3.5" & UsbPCMonitor 3.5"/5")'
+        )
+        # NOTE: If you have UsbPCMonitor 5" you need to change the width/height to 480x800 below
+        lcd_comm = LcdCommRevA(com_port=COM_PORT, display_width=320, display_height=480)
+    elif REVISION == "B":
+        logger.info(
+            'Selected Hardware Revision B (XuanFang screen 3.5" version B / flagship)'
+        )
+        lcd_comm = LcdCommRevB(com_port=COM_PORT)
+    elif REVISION == "C":
+        logger.info('Selected Hardware Revision C (Turing Smart Screen 5")')
+        lcd_comm = LcdCommRevC(com_port=COM_PORT)
+    elif REVISION == "D":
+        logger.info('Selected Hardware Revision D (Kipye Qiye Smart Display 3.5")')
+        lcd_comm = LcdCommRevD(com_port=COM_PORT)
+    elif REVISION == "SIMU":
+        logger.info('Selected 3.5" Simulated LCD')
+        lcd_comm = LcdSimulated(display_width=320, display_height=480)
+    elif REVISION == "SIMU5":
+        logger.info('Selected 5" Simulated LCD')
+        lcd_comm = LcdSimulated(display_width=480, display_height=800)
+    else:
+        logger.error("Unknown revision")
         sys.exit(1)
-    except:
-        os._exit(1)
+except Exception as e:
+    logger.error(f"Failed to initialize LCD: {e}")
+    sys.exit(1)
 
 # Reset screen in case it was in an unstable state (screen is also cleared)
 lcd_comm.reset()

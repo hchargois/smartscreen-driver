@@ -16,9 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import os
 import queue
-import sys
 import threading
 import time
 from abc import ABC, abstractmethod
@@ -37,6 +35,10 @@ class Orientation(IntEnum):
     LANDSCAPE = 2
     REVERSE_PORTRAIT = 1
     REVERSE_LANDSCAPE = 3
+
+
+class ComPortDetectError(Exception):
+    pass
 
 
 class LcdComm(ABC):
@@ -89,28 +91,13 @@ class LcdComm(ABC):
         if self.com_port == "AUTO":
             self.com_port = self.auto_detect_com_port()
             if not self.com_port:
-                logger.error(
-                    "Cannot find COM port automatically, please run Configuration again and select COM port manually"
-                )
-                try:
-                    sys.exit(0)
-                except:
-                    os._exit(0)
+                raise ComPortDetectError("No COM port detected")
             else:
                 logger.debug(f"Auto detected COM port: {self.com_port}")
         else:
             logger.debug(f"Static COM port: {self.com_port}")
 
-        try:
-            self.lcd_serial = serial.Serial(
-                self.com_port, 115200, timeout=1, rtscts=True
-            )
-        except Exception as e:
-            logger.error(f"Cannot open COM port {self.com_port}: {e}")
-            try:
-                sys.exit(0)
-            except:
-                os._exit(0)
+        self.lcd_serial = serial.Serial(self.com_port, 115200, timeout=1, rtscts=True)
 
     def close_serial(self):
         if self.lcd_serial is not None:
