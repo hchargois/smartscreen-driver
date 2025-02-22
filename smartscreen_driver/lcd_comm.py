@@ -21,11 +21,11 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from enum import IntEnum
-from typing import Tuple, Optional, Dict
+from typing import Tuple, Optional
 import logging
 
 import serial
-from PIL import Image, ImageFont
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 
