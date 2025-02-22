@@ -69,7 +69,7 @@ class LcdComm(ABC):
         # mixed with other requests in-between
         self.update_queue_mutex = threading.Lock()
 
-    def get_width(self) -> int:
+    def width(self) -> int:
         if (
             self.orientation == Orientation.PORTRAIT
             or self.orientation == Orientation.REVERSE_PORTRAIT
@@ -78,7 +78,7 @@ class LcdComm(ABC):
         else:
             return self.display_height
 
-    def get_height(self) -> int:
+    def height(self) -> int:
         if (
             self.orientation == Orientation.PORTRAIT
             or self.orientation == Orientation.REVERSE_PORTRAIT
@@ -86,6 +86,9 @@ class LcdComm(ABC):
             return self.display_height
         else:
             return self.display_width
+
+    def size(self) -> Tuple[int, int]:
+        return self.width(), self.height()
 
     def open_serial(self):
         if self.com_port == "AUTO":

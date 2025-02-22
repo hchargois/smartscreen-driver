@@ -155,7 +155,7 @@ class LcdCommRevD(LcdComm):
         image_width: int = 0,
         image_height: int = 0,
     ):
-        width, height = self.get_width(), self.get_height()
+        width, height = self.width(), self.height()
 
         # If the image height/width isn't provided, use the native image size
         if not image_height:

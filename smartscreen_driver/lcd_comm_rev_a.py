@@ -176,8 +176,8 @@ class LcdCommRevA(LcdComm):
 
     def set_orientation(self, orientation: Orientation = Orientation.PORTRAIT):
         self.orientation = orientation
-        width = self.get_width()
-        height = self.get_height()
+        width = self.width()
+        height = self.height()
         x = 0
         y = 0
         ex = 0
@@ -204,7 +204,7 @@ class LcdCommRevA(LcdComm):
         image_width: int = 0,
         image_height: int = 0,
     ):
-        width, height = self.get_width(), self.get_height()
+        width, height = self.width(), self.height()
 
         # If the image height/width isn't provided, use the native image size
         if not image_height:

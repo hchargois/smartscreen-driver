@@ -86,7 +86,7 @@ class LcdSimulated(LcdComm):
     ):
         LcdComm.__init__(self, com_port, display_width, display_height, update_queue)
         self.screen_image = Image.new(
-            "RGB", (self.get_width(), self.get_height()), (255, 255, 255)
+            "RGB", (self.width(), self.height()), (255, 255, 255)
         )
         self.screen_image.save("tmp", "PNG")
         shutil.copyfile("tmp", SCREENSHOT_FILE)
@@ -146,7 +146,7 @@ class LcdSimulated(LcdComm):
         # Just draw the screen again with the new width/height based on orientation
         with self.update_queue_mutex:
             self.screen_image = Image.new(
-                "RGB", (self.get_width(), self.get_height()), (255, 255, 255)
+                "RGB", (self.width(), self.height()), (255, 255, 255)
             )
             self.screen_image.save("tmp", "PNG")
             shutil.copyfile("tmp", SCREENSHOT_FILE)
@@ -166,13 +166,13 @@ class LcdSimulated(LcdComm):
             image_width = image.size[0]
 
         # If our image is bigger than our display, resize it to fit our screen
-        if image.size[1] > self.get_height():
-            image_height = self.get_height()
-        if image.size[0] > self.get_width():
-            image_width = self.get_width()
+        if image.size[1] > self.height():
+            image_height = self.height()
+        if image.size[0] > self.width():
+            image_width = self.width()
 
-        assert x <= self.get_width(), "Image X coordinate must be <= display width"
-        assert y <= self.get_height(), "Image Y coordinate must be <= display height"
+        assert x <= self.width(), "Image X coordinate must be <= display width"
+        assert y <= self.height(), "Image Y coordinate must be <= display height"
         assert image_height > 0, "Image height must be > 0"
         assert image_width > 0, "Image width must be > 0"
 

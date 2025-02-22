@@ -117,7 +117,7 @@ lcd_comm.set_backplate_led_color(led_color=(255, 255, 255))
 lcd_comm.set_orientation(orientation=Orientation.LANDSCAPE)
 
 # Display sample text
-img = Image.new("RGB", (lcd_comm.get_width(), lcd_comm.get_height()), (0, 0, 0))
+img = Image.new("RGB", lcd_comm.size(), (0, 0, 0))
 draw = ImageDraw.Draw(img)
 draw.text((0, 0), "Hello world!", font_size=48, fill=(255, 255, 255))
 lcd_comm.paint(img)

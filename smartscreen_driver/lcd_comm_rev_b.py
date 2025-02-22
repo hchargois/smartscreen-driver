@@ -169,7 +169,7 @@ class LcdCommRevB(LcdComm):
         backup_orientation = self.orientation
         self.set_orientation(orientation=Orientation.PORTRAIT)
 
-        blank = Image.new("RGB", (self.get_width(), self.get_height()), (255, 255, 255))
+        blank = Image.new("RGB", (self.width(), self.height()), (255, 255, 255))
         self.paint(blank)
 
         # Restore orientation
@@ -250,13 +250,13 @@ class LcdCommRevB(LcdComm):
             image_width = image.size[0]
 
         # If our image is bigger than our display, resize it to fit our screen
-        if image.size[1] > self.get_height():
-            image_height = self.get_height()
-        if image.size[0] > self.get_width():
-            image_width = self.get_width()
+        if image.size[1] > self.height():
+            image_height = self.height()
+        if image.size[0] > self.width():
+            image_width = self.width()
 
-        assert x <= self.get_width(), "Image X coordinate must be <= display width"
-        assert y <= self.get_height(), "Image Y coordinate must be <= display height"
+        assert x <= self.width(), "Image X coordinate must be <= display width"
+        assert y <= self.height(), "Image Y coordinate must be <= display height"
         assert image_height > 0, "Image height must be > 0"
         assert image_width > 0, "Image width must be > 0"
 
@@ -269,10 +269,10 @@ class LcdCommRevB(LcdComm):
         else:
             # Reverse landscape/portrait orientations are software-managed: get new coordinates
             (x0, y0) = (
-                self.get_width() - x - image_width,
-                self.get_height() - y - image_height,
+                self.width() - x - image_width,
+                self.height() - y - image_height,
             )
-            (x1, y1) = (self.get_width() - x - 1, self.get_height() - y - 1)
+            (x1, y1) = (self.width() - x - 1, self.height() - y - 1)
 
         self.send_command(
             Command.DISPLAY_BITMAP,
@@ -293,5 +293,5 @@ class LcdCommRevB(LcdComm):
         # Lock queue mutex then queue all the requests for the image data
         with self.update_queue_mutex:
             # Send image data by multiple of "display width" bytes
-            for chunk in chunked(rgb565be, self.get_width() * 8):
+            for chunk in chunked(rgb565be, self.width() * 8):
                 self.send_line(chunk)

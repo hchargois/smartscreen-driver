@@ -248,7 +248,7 @@ class LcdCommRevC(LcdComm):
         backup_orientation = self.orientation
         self.set_orientation(orientation=Orientation.PORTRAIT)
 
-        blank = Image.new("RGB", (self.get_width(), self.get_height()), (255, 255, 255))
+        blank = Image.new("RGB", (self.width(), self.height()), (255, 255, 255))
         self.paint(blank)
 
         # Restore orientation
@@ -319,24 +319,24 @@ class LcdCommRevC(LcdComm):
             image_width = image.size[0]
 
         # If our image is bigger than our display, resize it to fit our screen
-        if image.size[1] > self.get_height():
-            image_height = self.get_height()
-        if image.size[0] > self.get_width():
-            image_width = self.get_width()
+        if image.size[1] > self.height():
+            image_height = self.height()
+        if image.size[0] > self.width():
+            image_width = self.width()
 
         if image_width != image.size[0] or image_height != image.size[1]:
             image = image.crop((0, 0, image_width, image_height))
 
-        assert x <= self.get_width(), "Image X coordinate must be <= display width"
-        assert y <= self.get_height(), "Image Y coordinate must be <= display height"
+        assert x <= self.width(), "Image X coordinate must be <= display width"
+        assert y <= self.height(), "Image Y coordinate must be <= display height"
         assert image_height > 0, "Image height must be > 0"
         assert image_width > 0, "Image width must be > 0"
 
         if (
             x == 0
             and y == 0
-            and (image_width == self.get_width())
-            and (image_height == self.get_height())
+            and (image_width == self.width())
+            and (image_height == self.height())
         ):
             with self.update_queue_mutex:
                 self._send_command(Command.PRE_UPDATE_BITMAP)
@@ -384,14 +384,14 @@ class LcdCommRevC(LcdComm):
 
         if self.orientation == Orientation.PORTRAIT:
             image = image.rotate(90, expand=True)
-            x0 = self.get_width() - x - image.height
+            x0 = self.width() - x - image.height
         elif self.orientation == Orientation.REVERSE_PORTRAIT:
             image = image.rotate(270, expand=True)
-            y0 = self.get_height() - y - image.width
+            y0 = self.height() - y - image.width
         elif self.orientation == Orientation.REVERSE_LANDSCAPE:
             image = image.rotate(180, expand=True)
-            y0 = self.get_width() - x - image.width
-            x0 = self.get_height() - y - image.height
+            y0 = self.width() - x - image.width
+            x0 = self.height() - y - image.height
         elif self.orientation == Orientation.LANDSCAPE:
             x0, y0 = y, x
 
