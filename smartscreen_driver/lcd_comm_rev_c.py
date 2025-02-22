@@ -307,30 +307,15 @@ class LcdCommRevC(LcdComm):
     def paint(
         self,
         image: Image.Image,
-        x: int = 0,
-        y: int = 0,
-        image_width: int = 0,
-        image_height: int = 0,
+        pos: Tuple[int, int] = (0, 0),
     ):
-        # If the image height/width isn't provided, use the native image size
-        if not image_height:
-            image_height = image.size[1]
-        if not image_width:
-            image_width = image.size[0]
+        image = self._crop_to_display_bounds(image, pos)
+        image_width, image_height = image.size[0], image.size[1]
 
-        # If our image is bigger than our display, resize it to fit our screen
-        if image.size[1] > self.height():
-            image_height = self.height()
-        if image.size[0] > self.width():
-            image_width = self.width()
+        if image_height == 0 or image_width == 0:
+            return
 
-        if image_width != image.size[0] or image_height != image.size[1]:
-            image = image.crop((0, 0, image_width, image_height))
-
-        assert x <= self.width(), "Image X coordinate must be <= display width"
-        assert y <= self.height(), "Image Y coordinate must be <= display height"
-        assert image_height > 0, "Image height must be > 0"
-        assert image_width > 0, "Image width must be > 0"
+        x, y = pos
 
         if (
             x == 0

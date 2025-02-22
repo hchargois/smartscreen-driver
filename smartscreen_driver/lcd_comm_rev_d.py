@@ -18,7 +18,7 @@
 
 from enum import Enum
 import logging
-from typing import Optional
+from typing import Optional, Tuple
 import queue
 
 from serial.tools.list_ports import comports
@@ -150,34 +150,15 @@ class LcdCommRevD(LcdComm):
     def paint(
         self,
         image: Image.Image,
-        x: int = 0,
-        y: int = 0,
-        image_width: int = 0,
-        image_height: int = 0,
+        pos: Tuple[int, int] = (0, 0),
     ):
-        width, height = self.width(), self.height()
+        image = self._crop_to_display_bounds(image, pos)
+        image_width, image_height = image.size[0], image.size[1]
 
-        # If the image height/width isn't provided, use the native image size
-        if not image_height:
-            image_height = image.size[1]
-        if not image_width:
-            image_width = image.size[0]
+        if image_height == 0 or image_width == 0:
+            return
 
-        assert x <= width, "Image X coordinate must be <= display width"
-        assert y <= height, "Image Y coordinate must be <= display height"
-        assert image_height > 0, "Image height must be > 0"
-        assert image_width > 0, "Image width must be > 0"
-
-        # If our image size + the (x, y) position offsets are bigger than
-        # our display, reduce the image size to fit our screen
-        if x + image_width > width:
-            image_width = width - x
-        if y + image_height > height:
-            image_height = height - y
-
-        if image_width != image.size[0] or image_height != image.size[1]:
-            image = image.crop((0, 0, image_width, image_height))
-
+        x, y = pos
         if (
             self.orientation == Orientation.PORTRAIT
             or self.orientation == Orientation.REVERSE_PORTRAIT

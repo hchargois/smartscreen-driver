@@ -201,13 +201,34 @@ class LcdComm(ABC):
     def set_orientation(self, orientation: Orientation):
         pass
 
+    def _crop_to_display_bounds(
+        self,
+        image: Image.Image,
+        pos: Tuple[int, int] = (0, 0),
+    ) -> Image.Image:
+        width, height = self.size()
+        x, y = pos
+        image_width, image_height = image.size[0], image.size[1]
+
+        assert 0 <= x < width, "x position not within display bounds"
+        assert 0 <= y < height, "y position not within display bounds"
+
+        # If our image size + the (x, y) position offsets are bigger than
+        # our display, reduce the image size to fit our screen
+        if x + image_width > width:
+            image_width = width - x
+        if y + image_height > height:
+            image_height = height - y
+
+        if image_width != image.size[0] or image_height != image.size[1]:
+            image = image.crop((0, 0, image_width, image_height))
+
+        return image
+
     @abstractmethod
     def paint(
         self,
         image: Image.Image,
-        x: int = 0,
-        y: int = 0,
-        image_width: int = 0,
-        image_height: int = 0,
+        pos: Tuple[int, int] = (0, 0),
     ):
         pass
