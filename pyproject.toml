@@ -1,10 +1,10 @@
 [project]
 name = "smartscreen-driver"
-version = "0.2.0"
+version = "0.2.1"
 description = "Driver for serial-over-USB displays; library extracted from turing-smart-screen-python"
 authors = [
-  { name="Mathieu Houdebine" },
   { name="Hugo Chargois", email="hugo.chargois@free.fr" },
+  { name="Mathieu Houdebine" },
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -18,6 +18,9 @@ dependencies = [
     "pillow>=11.1.0",
     "pyserial>=3.5",
 ]
+
+[project.urls]
+homepage = "https://github.com/hchargois/smartscreen-driver"
 
 [build-system]
 requires = ["hatchling"]
