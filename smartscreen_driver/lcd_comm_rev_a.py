@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 class Command(IntEnum):
     RESET = 101  # Resets the display
     CLEAR = 102  # Clears the display to a white screen
-    TO_BLACK = 103  # Makes the screen go black. NOT TESTED
+    TO_BLACK = 103  # Clears the display to a black screen. Works on Official Turing 3.5, may not work on other models
     SCREEN_OFF = 108  # Turns the screen off
     SCREEN_ON = 109  # Turns the screen on
     SET_BRIGHTNESS = 110  # Sets the screen brightness
@@ -155,7 +155,10 @@ class LcdCommRevA(LcdComm):
         self.set_orientation(
             Orientation.PORTRAIT
         )  # Bug: orientation needs to be PORTRAIT before clearing
-        self.send_command(Command.CLEAR, 0, 0, 0, 0)
+        if self.sub_revision == SubRevision.TURING_3_5:
+            self.send_command(Command.TO_BLACK, 0, 0, 0, 0)
+        else:
+            self.send_command(Command.CLEAR, 0, 0, 0, 0)
         self.set_orientation()  # Restore default orientation
 
     def screen_off(self):

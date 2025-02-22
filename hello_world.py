@@ -126,6 +126,7 @@ while not stop:
     time.sleep(1)
 
 lcd_comm.screen_off()
+lcd_comm.clear()
 
 # Close serial connection at exit
 lcd_comm.close_serial()
