@@ -1,6 +1,6 @@
 [project]
 name = "smartscreen-driver"
-version = "0.2.2"
+version = "0.2.3"
 description = "Driver for serial-over-USB displays; library extracted from turing-smart-screen-python"
 authors = [
   { name="Hugo Chargois", email="hugo.chargois@free.fr" },

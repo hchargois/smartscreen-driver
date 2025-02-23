@@ -152,14 +152,17 @@ class LcdCommRevA(LcdComm):
         self.open_serial()
 
     def clear(self):
-        self.set_orientation(
-            Orientation.PORTRAIT
-        )  # Bug: orientation needs to be PORTRAIT before clearing
+        # Bug: orientation needs to be PORTRAIT before clearing
+        backup_orientation = self.orientation
+        self.set_orientation(Orientation.PORTRAIT)
+
         if self.sub_revision == SubRevision.TURING_3_5:
             self.send_command(Command.TO_BLACK, 0, 0, 0, 0)
         else:
             self.send_command(Command.CLEAR, 0, 0, 0, 0)
-        self.set_orientation()  # Restore default orientation
+
+        # Restore previous orientation
+        self.set_orientation(backup_orientation)
 
     def screen_off(self):
         self.send_command(Command.SCREEN_OFF, 0, 0, 0, 0)
